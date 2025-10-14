@@ -5,7 +5,7 @@ import { CopilotKitCSSProperties, CopilotSidebar } from "@copilotkit/react-ui";
 import { useState } from "react";
 import { AgentState as AgentStateSchema } from "@/mastra/agents";
 import { z } from "zod";
-import { WeatherToolResult } from "@/mastra/tools";
+import { WeatherToolResult } from "@/mastra/mcp/tools";
 
 type AgentState = z.infer<typeof AgentStateSchema>;
 
