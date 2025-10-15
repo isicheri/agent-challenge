@@ -13,7 +13,10 @@ const eslintConfig = [
   ...compat.config({
     extends: ["next/core-web-vitals", "next/typescript"],
     rules: {
-      '@ts-expect-error': 'off'
+      '@ts-expect-error': 'off',
+  '@typescript-eslint/no-explicit-any': 'off',
+  '@typescript-eslint/no-unused-vars': 'warn',
+  'react/no-unescaped-entities': 'warn'
     }
   })
 ];

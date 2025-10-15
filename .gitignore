@@ -90,3 +90,16 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 bun.lockb
+
+
+/dist
+
+# Ignore compiled JS files everywhere (except .jsx/.tsx if needed)
+*.js
+*.jsx
+
+
+# Optionally ignore compiled JS files only in certain folders, for example:
+/app/api/copilotkit/*.js
+/mastra/**/*.js
+/mcp-server/**/*.js
