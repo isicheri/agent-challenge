@@ -14,7 +14,7 @@ const serviceAdapter = new ExperimentalEmptyAdapter();
 export const POST = async (req: NextRequest) => {
 
   // 3. Create the CopilotRuntime instance and utilize the Mastra AG-UI
-  //    integration to get the remote agents. Cache this for performance.
+  //    integration to get the study assistant agent. Cache this for performance.
   const runtime = new CopilotRuntime({
     agents: MastraAgent.getLocalAgents({ mastra }),
   });

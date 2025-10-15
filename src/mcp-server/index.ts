@@ -1,6 +1,12 @@
 import { MCPServer } from "@mastra/mcp"
-import { chatWithResourceTool, generateFlashcardsTool, summarizeContentTool } from "./tools";
-import { flashcardAgent, textSummarizeAgent } from "./agents";
+import { summarizeContentTool } from "./tools/summarizeTool.js";
+import { generateFlashcardsTool } from "./tools/flashcardTool.js";
+import { chatWithResourceTool } from "./tools/chatWithResourcesTool.js";
+import { flashcardAgent, textSummarizeAgent } from "./agents/index.js";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const server = new MCPServer({
   name: "Study Assistant MCP Server",
@@ -79,7 +85,8 @@ export async function startHttpServer(port: number = 4112) {
 }
 
 // If this file is run directly, start the HTTP server
-if (require.main === module) {
+const __filename = fileURLToPath(import.meta.url);
+if (process.argv[1] === __filename) {
   const port = parseInt(process.env.MCP_PORT || '4112', 10);
   startHttpServer(port).catch(console.error);
 }

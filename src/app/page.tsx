@@ -5,12 +5,11 @@ import { CopilotKitCSSProperties, CopilotSidebar } from "@copilotkit/react-ui";
 import { useState } from "react";
 import { AgentState as AgentStateSchema } from "@/mastra/agents";
 import { z } from "zod";
-import { WeatherToolResult } from "@/mastra/mcp/tools";
 
 type AgentState = z.infer<typeof AgentStateSchema>;
 
 export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#6366f1");
+  const [themeColor, setThemeColor] = useState("#10b981");
 
   // 🪁 Frontend Actions: https://docs.copilotkit.ai/guides/frontend-actions
   useCopilotAction({
@@ -27,41 +26,92 @@ export default function CopilotKitPage() {
 
   return (
     <main style={{ "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties}>
-      <YourMainContent themeColor={themeColor} />
+      <StudyAssistantContent themeColor={themeColor} />
       <CopilotSidebar
         clickOutsideToClose={false}
         defaultOpen={true}
         labels={{
-          title: "Popup Assistant",
-          initial: "👋 Hi, there! You're chatting with an agent. This agent comes with a few tools to get you started.\n\nFor example you can try:\n- **Frontend Tools**: \"Set the theme to orange\"\n- **Shared State**: \"Write a proverb about AI\"\n- **Generative UI**: \"Get the weather in SF\"\n\nAs you interact with the agent, you'll see the UI update in real-time to reflect the agent's **state**, **tool calls**, and **progress**."
+          title: "Study Assistant",
+          initial: "👋 Hi! I'm your AI study assistant. I can help you learn better by:\n\n📚 **Summarizing content** - Paste any text and I'll summarize it in your preferred style\n🎯 **Creating flashcards** - Turn summaries into study flashcards\n💬 **Answering questions** - Ask me anything about your study materials\n\nTry saying:\n- \"Summarize this text: [paste your content]\"\n- \"Create flashcards from this summary\"\n- \"What does this concept mean?\"\n\nI'll remember your preferences and adapt to your learning style!"
         }}
       />
     </main>
   );
 }
 
-function YourMainContent({ themeColor }: { themeColor: string }) {
+function StudyAssistantContent({ themeColor }: { themeColor: string }) {
   // 🪁 Shared State: https://docs.copilotkit.ai/coagents/shared-state
-  const { state, setState } = useCoAgent<AgentState>({
-    name: "weatherAgent",
+
+  
+  const { state } = useCoAgent<AgentState>({
+    name: "studyAssistantAgent",
     initialState: {
-      proverbs: [
-        "CopilotKit may be new, but its the best thing since sliced bread.",
-      ],
+      userName: "",
+      userPreferences: {
+        preferredSummaryStyle: "detailed",
+        preferredFlashcardStyle: "general",
+        learningLevel: "intermediate",
+      },
+      currentSession: {
+        topics: [],
+        sessionStartTime: new Date().toISOString(),
+      },
+      studyHistory: [],
+      currentResources: [],
     },
   })
 
   //🪁 Generative UI: https://docs.copilotkit.ai/coagents/generative-ui
   useCopilotAction({
-    name: "weatherTool",
-    description: "Get the weather for a given location.",
+    name: "summarizeContentTool",
+    description: "Summarize study content with different styles.",
     available: "frontend",
     parameters: [
-      { name: "location", type: "string", required: true },
+      { name: "content", type: "string", required: true },
+      { name: "style", type: "string", required: false },
     ],
-    render: ({ args, result, status }) => {
-      return <WeatherCard
-        location={args.location}
+    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
+      return <SummaryCard
+        content={args.content}
+        style={args.style}
+        themeColor={themeColor}
+        result={result}
+        status={status}
+      />
+    },
+  });
+
+  useCopilotAction({
+    name: "generateFlashcardsTool",
+    description: "Generate flashcards from study content.",
+    available: "frontend",
+    parameters: [
+      { name: "content", type: "string", required: true },
+      { name: "style", type: "string", required: false },
+    ],
+    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
+      return <FlashcardCard
+        content={args.content}
+        style={args.style}
+        themeColor={themeColor}
+        result={result}
+        status={status}
+      />
+    },
+  });
+
+  useCopilotAction({
+    name: "chatWithResourceTool",
+    description: "Answer questions about study materials.",
+    available: "frontend",
+    parameters: [
+      { name: "question", type: "string", required: true },
+      { name: "messages", type: "object[]", required: false },
+      { name: "resources", type: "object[]", required: false },
+    ],
+    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
+      return <AnswerCard
+        question={args.question}
         themeColor={themeColor}
         result={result}
         status={status}
@@ -90,59 +140,108 @@ function YourMainContent({ themeColor }: { themeColor: string }) {
       style={{ backgroundColor: themeColor }}
       className="h-screen w-screen flex justify-center items-center flex-col transition-colors duration-300"
     >
-      <div className="bg-white/20 backdrop-blur-md p-8 rounded-2xl shadow-xl max-w-2xl w-full">
-        <h1 className="text-4xl font-bold text-white mb-2 text-center">Proverbs</h1>
-        <p className="text-gray-200 text-center italic mb-6">This is a demonstrative page, but it could be anything you want! 🪁</p>
-        <hr className="border-white/20 my-6" />
-        <div className="flex flex-col gap-3">
-          {state.proverbs?.map((proverb, index) => (
-            <div
-              key={index}
-              className="bg-white/15 p-4 rounded-xl text-white relative group hover:bg-white/20 transition-all"
-            >
-              <p className="pr-8">{proverb}</p>
-              <button
-                onClick={() => setState({
-                  ...state,
-                  proverbs: state.proverbs?.filter((_, i) => i !== index),
-                })}
-                className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity 
-                  bg-red-500 hover:bg-red-600 text-white rounded-full h-6 w-6 flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+      <div className="bg-white/20 backdrop-blur-md p-8 rounded-2xl shadow-xl max-w-4xl w-full">
+        <h1 className="text-4xl font-bold text-white mb-2 text-center">Study Assistant</h1>
+        <p className="text-gray-200 text-center italic mb-6">Your AI-powered learning companion 📚</p>
+        
+        {/* User Info */}
+        <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
+          <h3 className="text-lg font-semibold mb-2">👤 Your Profile</h3>
+          {state.userName ? (
+            <p>Welcome back, <strong>{state.userName}</strong>!</p>
+          ) : (
+            <p>Tell me your name to personalize your experience</p>
+          )}
+          {state.userPreferences?.learningLevel && (
+            <p className="text-sm opacity-80">Learning Level: {state.userPreferences.learningLevel}</p>
+          )}
         </div>
-        {state.proverbs?.length === 0 && <p className="text-center text-white/80 italic my-8">
-          No proverbs yet. Ask the assistant to add some!
-        </p>}
+
+        {/* Current Session */}
+        {state.currentSession?.topics && state.currentSession.topics.length > 0 && (
+          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
+            <h3 className="text-lg font-semibold mb-2">📖 Current Session</h3>
+            <div className="flex flex-wrap gap-2">
+              {state.currentSession.topics.map((topic, index) => (
+                <span key={index} className="bg-white/20 px-3 py-1 rounded-full text-sm">
+                  {topic}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Study History */}
+        {state.studyHistory && state.studyHistory.length > 0 && (
+          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
+            <h3 className="text-lg font-semibold mb-2">📊 Study History</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {state.studyHistory.slice(0, 4).map((item, index) => (
+                <div key={index} className="bg-white/10 p-2 rounded text-sm">
+                  <div className="font-medium">{item.topic}</div>
+                  <div className="text-xs opacity-80">
+                    {item.summaryCount} summaries, {item.flashcardCount} flashcards
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Resources */}
+        {state.currentResources && state.currentResources.length > 0 && (
+          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
+            <h3 className="text-lg font-semibold mb-2">📄 Current Resources</h3>
+            <div className="space-y-2">
+              {state.currentResources.map((resource, index) => (
+                <div key={index} className="bg-white/10 p-2 rounded text-sm">
+                  <div className="font-medium">{resource.name}</div>
+                  <div className="text-xs opacity-80">
+                    {resource.content.length > 100 
+                      ? `${resource.content.substring(0, 100)}...` 
+                      : resource.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="text-center text-white/80 italic">
+          <p>💡 Try asking me to:</p>
+          <p className="text-sm mt-2">
+            "Summarize this text: [paste your content]"<br/>
+            "Create flashcards from this summary"<br/>
+            "What does this concept mean?"
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-// Weather card component where the location and themeColor are based on what the agent
-// sets via tool calls.
-function WeatherCard({
-  location,
+// Summary card component for displaying summarized content
+function SummaryCard({
+  content,
+  style,
   themeColor,
   result,
   status
 }: {
-  location?: string,
+  content?: string,
+  style?: string,
   themeColor: string,
-  result: WeatherToolResult,
+  result: any,
   status: "inProgress" | "executing" | "complete"
 }) {
   if (status !== "complete") {
     return (
       <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-md w-full"
+        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
         style={{ backgroundColor: themeColor }}
       >
         <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">Loading weather for {location}...</p>
+          <p className="text-white animate-pulse">📚 Summarizing content...</p>
         </div>
       </div>
     )
@@ -151,106 +250,132 @@ function WeatherCard({
   return (
     <div
       style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-md w-full"
+      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
     >
       <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-white capitalize">{location}</h3>
-            <p className="text-white">Current Weather</p>
-          </div>
-          <WeatherIcon conditions={result?.conditions} />
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xl font-bold text-white">📚 Summary</h3>
+          <span className="text-sm text-white/80 bg-white/20 px-2 py-1 rounded">
+            {style || "detailed"}
+          </span>
         </div>
-
-        <div className="mt-4 flex items-end justify-between">
-          <div className="text-3xl font-bold text-white">
-            <span className="">
-              {result?.temperature}° C
-            </span>
-            <span className="text-sm text-white/50">
-              {" / "}
-              {((result?.temperature * 9) / 5 + 32).toFixed(1)}° F
-            </span>
-          </div>
-          <div className="text-sm text-white">{result?.conditions}</div>
-        </div>
-
-        <div className="mt-4 pt-4 border-t border-white">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-white text-xs">Humidity</p>
-              <p className="text-white font-medium">{result?.humidity}%</p>
-            </div>
-            <div>
-              <p className="text-white text-xs">Wind</p>
-              <p className="text-white font-medium">{result?.windSpeed} mph</p>
-            </div>
-            <div>
-              <p className="text-white text-xs">Feels Like</p>
-              <p className="text-white font-medium">{result?.feelsLike}°</p>
-            </div>
-          </div>
+        
+        <div className="text-white whitespace-pre-wrap">
+          {result?.summary || "Summary not available"}
         </div>
       </div>
     </div>
   );
 }
 
-function WeatherIcon({ conditions }: { conditions: string }) {
-  if (!conditions) return null;
-
-  if (
-    conditions.toLowerCase().includes("clear") ||
-    conditions.toLowerCase().includes("sunny")
-  ) {
-    return <SunIcon />;
+// Flashcard card component for displaying generated flashcards
+function FlashcardCard({
+  content,
+  style,
+  themeColor,
+  result,
+  status
+}: {
+  content?: string,
+  style?: string,
+  themeColor: string,
+  result: any,
+  status: "inProgress" | "executing" | "complete"
+}) {
+  if (status !== "complete") {
+    return (
+      <div
+        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
+        style={{ backgroundColor: themeColor }}
+      >
+        <div className="bg-white/20 p-4 w-full">
+          <p className="text-white animate-pulse">🎯 Generating flashcards...</p>
+        </div>
+      </div>
+    )
   }
 
-  if (
-    conditions.toLowerCase().includes("rain") ||
-    conditions.toLowerCase().includes("drizzle") ||
-    conditions.toLowerCase().includes("snow") ||
-    conditions.toLowerCase().includes("thunderstorm")
-  ) {
-    return <RainIcon />;
-  }
+  const flashcards = result?.flashcards || [];
 
-  if (
-    conditions.toLowerCase().includes("fog") ||
-    conditions.toLowerCase().includes("cloud") ||
-    conditions.toLowerCase().includes("overcast")
-  ) {
-    return <CloudIcon />;
-  }
-
-  return <CloudIcon />;
-}
-
-// Simple sun icon for the weather card
-function SunIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-yellow-200">
-      <circle cx="12" cy="12" r="5" />
-      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2" stroke="currentColor" />
-    </svg>
+    <div
+      style={{ backgroundColor: themeColor }}
+      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
+    >
+      <div className="bg-white/20 p-4 w-full">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xl font-bold text-white">🎯 Flashcards</h3>
+          <span className="text-sm text-white/80 bg-white/20 px-2 py-1 rounded">
+            {style || "general"}
+          </span>
+        </div>
+        
+        <div className="space-y-3">
+          {flashcards.map((card: any, index: number) => (
+            <div key={index} className="bg-white/10 p-3 rounded-lg">
+              <div className="text-white">
+                <div className="font-semibold mb-2">Q: {card.question}</div>
+                <div className="text-sm opacity-90">A: {card.answer}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function RainIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-blue-200">
-      {/* Cloud */}
-      <path d="M7 15a4 4 0 0 1 0-8 5 5 0 0 1 10 0 4 4 0 0 1 0 8H7z" fill="currentColor" opacity="0.8" />
-      {/* Rain drops */}
-      <path d="M8 18l2 4M12 18l2 4M16 18l2 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
+// Answer card component for displaying Q&A responses
+function AnswerCard({
+  question,
+  themeColor,
+  result,
+  status
+}: {
+  question?: string,
+  themeColor: string,
+  result: any,
+  status: "inProgress" | "executing" | "complete"
+}) {
+  if (status !== "complete") {
+    return (
+      <div
+        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
+        style={{ backgroundColor: themeColor }}
+      >
+        <div className="bg-white/20 p-4 w-full">
+          <p className="text-white animate-pulse">💬 Thinking about your question...</p>
+        </div>
+      </div>
+    )
+  }
 
-function CloudIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-gray-200">
-      <path d="M7 15a4 4 0 0 1 0-8 5 5 0 0 1 10 0 4 4 0 0 1 0 8H7z" fill="currentColor" />
-    </svg>
+    <div
+      style={{ backgroundColor: themeColor }}
+      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
+    >
+      <div className="bg-white/20 p-4 w-full">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xl font-bold text-white">💬 Answer</h3>
+        </div>
+        
+        <div className="text-white mb-3">
+          <div className="font-semibold">Q: {question}</div>
+        </div>
+        
+        <div className="text-white whitespace-pre-wrap">
+          {result?.answer || "Answer not available"}
+        </div>
+        
+        {result?.usedResources && result.usedResources.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-white/20">
+            <div className="text-sm text-white/80">
+              📄 Used resources: {result.usedResources.join(", ")}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

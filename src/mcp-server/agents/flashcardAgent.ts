@@ -1,10 +1,11 @@
 import { Agent } from "@mastra/core/agent";
-import { createOllama } from "ollama-ai-provider-v2";
+import {mistral} from  "@ai-sdk/mistral";
+// import { createOllama } from "ollama-ai-provider-v2";
 
 
-const ollama = createOllama({
-  baseURL: process.env.NOS_OLLAMA_API_URL || process.env.OLLAMA_API_URL,
-})
+// const ollama = createOllama({
+//   baseURL: process.env.NOS_OLLAMA_API_URL || process.env.OLLAMA_API_URL,
+// })
 
 
 
@@ -12,7 +13,8 @@ export const flashcardAgent = new Agent({
   name: "flashcardAgent",
   description: "Generates high-quality flashcards from study content in various styles for effective revision.",
     // model: openai("gpt-4o"), // uncomment this line to use openai
-  model: ollama(process.env.NOS_MODEL_NAME_AT_ENDPOINT || process.env.MODEL_NAME_AT_ENDPOINT || "qwen3:8b"), // comment this line to use openai
+  // model: ollama(process.env.NOS_MODEL_NAME_AT_ENDPOINT || process.env.MODEL_NAME_AT_ENDPOINT || "qwen3:0.6b"), // comment this line to use openai
+  model: mistral("ministral-3b-latest"),
   instructions: `
 You are an academic assistant that creates *flashcards* for students to study and revise educational content.
 

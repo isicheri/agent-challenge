@@ -1,17 +1,18 @@
 import { Agent } from "@mastra/core/agent";
-import { createOllama } from "ollama-ai-provider-v2";
+// import { createOllama } from "ollama-ai-provider-v2";
+import {mistral} from "@ai-sdk/mistral"
 
-
-const ollama = createOllama({
-  baseURL: process.env.NOS_OLLAMA_API_URL || process.env.OLLAMA_API_URL,
-})
+// const ollama = createOllama({
+//   baseURL: process.env.NOS_OLLAMA_API_URL || process.env.OLLAMA_API_URL,
+// })
 
 export const textSummarizeAgent = new Agent({
   name: "textSummarizeAgent",
   description:
     "An adaptive summarization agent that can produce summaries in different tones and structures based on user-selected style.",
   // model: openai("gpt-4o"), // uncomment this line to use openai
-  model: ollama(process.env.NOS_MODEL_NAME_AT_ENDPOINT || process.env.MODEL_NAME_AT_ENDPOINT || "qwen3:8b"), // comment this line to use openai
+  // model: ollama(process.env.NOS_MODEL_NAME_AT_ENDPOINT || process.env.MODEL_NAME_AT_ENDPOINT || "qwen3:0.6b"), // comment this line to use openai
+  model: mistral("ministral-3b-latest"),
   instructions: `
 You are an expert study assistant and summarizer.
 

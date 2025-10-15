@@ -1,6 +1,6 @@
 import { createTool } from "@mastra/core";
 import { z } from "zod";
-import { flashcardAgent } from "../agents/flashcardAgent";
+import { flashcardAgent } from "../agents/flashcardAgent.js";
 
 function getFlashcardPrompt(content: string, style: string) {
   return `Generate ${style} flashcards from the text below. Each question should test understanding or application.
@@ -42,7 +42,7 @@ export const generateFlashcardsTool = createTool({
     const trimmedContent = content.length > MAX_LENGTH ? content.slice(0, MAX_LENGTH) : content;
     const prompt = getFlashcardPrompt(trimmedContent, style);
 
-    const result = await flashcardAgent.generate([
+    const result = await flashcardAgent.generateVNext([
       { role: "user", content: prompt }
     ]);
 

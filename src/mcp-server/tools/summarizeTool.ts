@@ -1,6 +1,6 @@
 import { createTool } from "@mastra/core";
 import { z } from "zod";
-import { textSummarizeAgent } from "../agents/textSummarizeAgent";
+import { textSummarizeAgent } from "../agents/textSummarizeAgent.js";
 
 async function getSummaryPrompt(content: string, style: string) {
   const finalText = cleanText(content);
@@ -44,7 +44,7 @@ export const summarizeContentTool = createTool({
     const { content, style } = context;
     const prompt = await getSummaryPrompt(content, style);
    try {
-  const result = await textSummarizeAgent.generate([
+  const result = await textSummarizeAgent.generateVNext([
     { role: "user", content: prompt }
   ])
   return {

@@ -1,6 +1,6 @@
 import { createTool } from "@mastra/core";
 import { z } from "zod";
-import { textSummarizeAgent } from "../agents/textSummarizeAgent";
+import { textSummarizeAgent } from "../agents/textSummarizeAgent.js";
 
 export const chatWithResourceTool = createTool({
   id: "chat-with-resource-tool",
