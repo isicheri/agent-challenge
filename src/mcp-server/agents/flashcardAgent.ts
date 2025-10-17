@@ -1,8 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import {mistral} from  "@ai-sdk/mistral";
 // import { createOllama } from "ollama-ai-provider-v2";
-
-
 // const ollama = createOllama({
 //   baseURL: process.env.NOS_OLLAMA_API_URL || process.env.OLLAMA_API_URL,
 // })

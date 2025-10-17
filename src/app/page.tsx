@@ -52,6 +52,7 @@ function StudyAssistantContent({ themeColor }: { themeColor: string }) {
         preferredFlashcardStyle: "general",
         learningLevel: "intermediate",
       },
+      hasGreeted: false,
       currentSession: {
         topics: [],
         sessionStartTime: new Date().toISOString(),

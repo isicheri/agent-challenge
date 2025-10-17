@@ -3,16 +3,19 @@ import { z } from "zod";
 import { flashcardAgent } from "../agents/flashcardAgent.js";
 
 function getFlashcardPrompt(content: string, style: string) {
-  return `Generate ${style} flashcards from the text below. Each question should test understanding or application.
+  return `
+Hey there, brainiac 🧠✨
 
-Return the flashcards as a JSON array in the format:
-[
-  {"question": "Question text", "answer": "Answer text"},
-  ...
-]
+Let’s turn this into a batch of ${style} flashcards! Your job is to help someone learn in a fun, helpful way.
 
-Text:
-${content}`;
+Here’s what I need:
+- Flashcards in the format: [{"question": "...", "answer": "..."}, ...]
+- Each one should make them *think* — even a little!
+- Keep it clear, helpful, and friendly (not robotic).
+
+Here's the text to work from:
+${content}
+  `;
 }
 
 export const generateFlashcardsTool = createTool({
