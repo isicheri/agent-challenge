@@ -1,40 +1,22 @@
 import { createTool } from "@mastra/core";
 import { z } from "zod";
 import { textSummarizeAgent } from "../agents/textSummarizeAgent.js";
-
-async function getSummaryPrompt(content: string, style: string) {
-  const finalText = cleanText(content);
-
-  switch (style) {
-    case "detailed":
-      return `Give a detailed academic-style summary with explanations and examples:\n\n${finalText}`;
-    case "exam_prep":
-      return `Summarize this as if preparing exam revision notes — focus on key facts and definitions:\n\n${finalText}`;
-    case "beginner_friendly":
-      return `Explain this in simple, beginner-friendly language, like teaching a student:\n\n${finalText}`;
-    case "bullet_points":
-      return `Summarize this text as clean bullet points, no intro or commentary:\n\n${finalText}`;
-    default:
-      return `Summarize this text concisely and clearly:\n\n${finalText}`;
-  }
-}
-function cleanText(raw: string): string {
-  return raw
-    .replace(/[^\x00-\x7F]/g, "") 
-    .replace(/\s+/g, " ")    
-    .trim();
-}
+import {generateText} from "ai";
+import { mistral } from "@ai-sdk/mistral";
 
 
+// Single shared model instance
+const model = mistral("ministral-3b-latest");
 
+// ============= SUMMARIZE TOOL (USING MAIN MODEL DIRECTLY) =============
 export const summarizeContentTool = createTool({
   id: "summarize-content-tool",
-  description: "Summarizes any uploaded or pasted text with flexible styles.",
+  description: "USE THIS TOOL when user says 'summarize', 'summary', 'explain this text', or pastes long text. Creates summaries in different styles.",
   inputSchema: z.object({
-    content: z.string().describe("The study text or content to summarize."),
+    content: z.string().describe("The full text the user wants summarized"),
     style: z.enum(["concise", "detailed", "exam_prep", "beginner_friendly", "bullet_points"])
             .default("detailed")
-            .describe("The desired style of summary."),
+            .describe("How to format the summary"),
   }),
   outputSchema: z.object({
     summary: z.string().max(3000),
@@ -42,21 +24,59 @@ export const summarizeContentTool = createTool({
   }),
   execute: async ({ context }) => {
     const { content, style } = context;
-    const prompt = await getSummaryPrompt(content, style);
-   try {
-  const result = await textSummarizeAgent.generateVNext([
-    { role: "user", content: prompt }
-  ])
-  return {
-    summary: result.text.trim(),
-    style
-  };
-} catch (err) {
-  console.error("Summarization failed:", err);
-  return {
-    summary: "The summarization model timed out or failed. Try simplifying the input or using a different style.",
-    style
-  };
-}
+    
+    try {
+      // Truncate to prevent long processing
+      const MAX_CHARS = 1500;
+      const truncatedContent = content.substring(0, MAX_CHARS);
+      
+      // Build simple prompt based on style
+      let prompt = "";
+      switch (style) {
+        case "concise":
+          prompt = `Summarize in 3-4 sentences:\n\n${truncatedContent}`;
+          break;
+        case "bullet_points":
+          prompt = `Create 6-8 bullet points summarizing:\n\n${truncatedContent}`;
+          break;
+        case "exam_prep":
+          prompt = `List 8 key facts for exam revision:\n\n${truncatedContent}`;
+          break;
+        case "beginner_friendly":
+          prompt = `Explain simply for beginners:\n\n${truncatedContent}`;
+          break;
+        default: // detailed
+          prompt = `Summarize with examples and explanations:\n\n${truncatedContent}`;
+      }
+      
+      // Direct AI call with aggressive timeout
+      const result = await Promise.race([
+        generateText({
+          model,
+          prompt,
+          maxOutputTokens: 500, // Limit output to speed up
+          temperature: 0.3, // Lower = faster, more focused
+        }),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 20000) // 20 second timeout
+        )
+      ]);
+      
+      return {
+        summary: result.text.trim() || "Unable to generate summary.",
+        style
+      };
+    } catch (err) {
+      console.error("Summarization failed:", err);
+      
+      // Fallback to basic extraction
+      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+      const fallback = sentences.slice(0, 4).join('. ') + '.';
+      
+      return {
+        summary: `Quick summary: ${fallback}\n\n(Full AI summary unavailable - using fallback)`,
+        style
+      };
+    }
   }
 });

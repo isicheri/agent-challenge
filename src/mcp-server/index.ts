@@ -67,8 +67,6 @@ export async function startHttpServer(port: number = 4112) {
     console.log(`📊 Health check available at ${baseUrl}/health`);
     console.log(`🔧 Available tools: summarizeContentTool`);
     console.log(`🔧 Available tools: chatWithResourceTool`);
-    console.log(`🤖 Available agents: textSummarizeAgent`);
-    console.log(`🤖 Available agents: flashCardAgent`);
   });
 
   // Graceful shutdown

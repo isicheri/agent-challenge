@@ -1,84 +1,107 @@
 import { createTool } from "@mastra/core";
 import { z } from "zod";
-import { textSummarizeAgent } from "../agents/textSummarizeAgent.js";
+import { mistral } from "@ai-sdk/mistral";
+import { generateText } from "ai";
+
+// Single shared model instance
+const model = mistral("ministral-3b-latest");
 
 export const chatWithResourceTool = createTool({
   id: "chat-with-resource-tool",
-  description: "Chat with study materials directly — uses conversation history and uploaded text resources for context.",
-
+  description: "USE THIS TOOL when user asks questions about uploaded files or previous study materials.",
+  
   inputSchema: z.object({
     messages: z.array(
       z.object({
         role: z.enum(["user", "assistant"]),
         content: z.string(),
       })
-    ).describe("Previous conversation history."),
+    ).describe("Previous conversation history"),
 
     resources: z.array(
       z.object({
         name: z.string(),
         content: z.string(),
       })
-    ).describe("List of resources to use for answering."),
+    ).describe("Uploaded study materials to reference"),
     
-    question: z.string().describe("The new question to answer."),
+    question: z.string().describe("The user's question to answer"),
   }),
 
   outputSchema: z.object({
     answer: z.string(),
     usedResources: z.array(z.string()),
   }),
-execute: async ({ context }) => {
-  const { messages, resources, question } = context;
+  
+  execute: async ({ context }) => {
+    const { messages, resources, question } = context;
 
-  const conversationHistory = messages
-    .map((m) => `${m.role === "user" ? "👤" : "🤖"}: ${m.content}`)
-    .join("\n");
+    try {
+      if (resources.length === 0) {
+        return {
+          answer: "No resources available to answer this question. Please upload study materials first.",
+          usedResources: [],
+        };
+      }
 
-  const resourceTexts = resources
-    .map((r) => `📘 ${r.name}:\n${r.content.substring(0, 2000)}\n`)
-    .join("\n\n");
+      // Combine resources (truncated)
+      const resourceText = resources
+        .map(r => `${r.name}: ${r.content.substring(0, 500)}`)
+        .join('\n\n');
+      
+      const conversationContext = messages
+        .slice(-3) // Last 3 messages only
+        .map(m => `${m.role}: ${m.content}`)
+        .join('\n');
 
-  const prompt = `
-You are a helpful and knowledgeable AI study assistant.
+      const prompt = `Using these study materials, answer the question concisely.
 
-Use the following conversation history and study materials to answer the user's question clearly and helpfully.
+Materials:
+${resourceText}
 
---- Conversation History ---
-${conversationHistory}
+Recent conversation:
+${conversationContext}
 
---- Study Materials ---
-${resourceTexts}
+Question: ${question}
 
---- Question ---
-${question}
+Answer (be brief and helpful):`;
 
-Please list the study materials you used at the end of your answer, like:
-Used resources: Resource1, Resource2
+      const result = await Promise.race([
+        generateText({
+          model,
+          prompt,
+          maxOutputTokens: 300,
+          temperature: 0.4,
+        }),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 15000)
+        )
+      ]);
 
-Guidelines:
-- If unsure, say so but provide related context.
-- Be concise but helpful.
-`;
-
-  const result = await textSummarizeAgent.generate([
-    { role: "user", content: prompt },
-  ]);
-
-  const answerText = result.text ?? "";
-  const match = answerText.match(/Used resources:\s*(.*)$/i);
-
-  const usedResources = match && match[1]
-    ? match[1].split(",").map((s) => s.trim())
-    : [];
-
-  const cleanAnswer = match
-    ? answerText.replace(/Used resources:.*$/i, "").trim()
-    : answerText.trim();
-
-  return {
-    answer: cleanAnswer,
-    usedResources,
-  };
-},
+      return {
+        answer: result.text.trim() || "Unable to generate an answer.",
+        usedResources: resources.map(r => r.name),
+      };
+      
+    } catch (err) {
+      console.error("Chat with resource failed:", err);
+      
+      // Simple fallback
+      const relevantResource = resources.find(r => 
+        r.content.toLowerCase().includes(question.toLowerCase().split(' ')[0])
+      );
+      
+      if (relevantResource) {
+        return {
+          answer: `From ${relevantResource.name}: ${relevantResource.content.substring(0, 300)}...`,
+          usedResources: [relevantResource.name],
+        };
+      }
+      
+      return {
+        answer: "Unable to find relevant information in the uploaded materials.",
+        usedResources: [],
+      };
+    }
+  },
 });
