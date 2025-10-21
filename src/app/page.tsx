@@ -1,382 +1,462 @@
 "use client";
 
-import { useCoAgent, useCopilotAction } from "@copilotkit/react-core";
-import { CopilotKitCSSProperties, CopilotSidebar } from "@copilotkit/react-ui";
-import { useState } from "react";
-import { AgentState as AgentStateSchema } from "@/mastra/agents";
-import { z } from "zod";
+import { useState, useEffect } from "react";
 
-type AgentState = z.infer<typeof AgentStateSchema>;
+type Topic = { name: string; difficulty: "easy" | "medium" | "hard"; examDate: string };
+type Availability = { monday: number; tuesday: number; wednesday: number; thursday: number; friday: number; saturday: number; sunday: number };
 
-export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#10b981");
+export default function StudyPlannerApp() {
+  const [currentStep, setCurrentStep] = useState<"onboarding" | "dashboard">("onboarding");
+  const [authMode, setAuthMode] = useState<"login" | "signup">("signup");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // 🪁 Frontend Actions: https://docs.copilotkit.ai/guides/frontend-actions
-  useCopilotAction({
-    name: "setThemeColor",
-    parameters: [{
-      name: "themeColor",
-      description: "The theme color to set. Make sure to pick nice colors.",
-      required: true,
-    }],
-    handler({ themeColor }) {
-      setThemeColor(themeColor);
-    },
-  });
+  const [examDate, setExamDate] = useState("");
+  const [topics, setTopics] = useState<Topic[]>([{ name: "", difficulty: "medium", examDate: "" }]);
+  const [availability, setAvailability] = useState<Availability>({ monday: 2, tuesday: 2, wednesday: 2, thursday: 2, friday: 2, saturday: 3, sunday: 0 });
 
+  const [createdSchedule, setCreatedSchedule] = useState<any | null>(null);
+  const [userSchedules, setUserSchedules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function createUser(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, username }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create user");
+      setUserId(data.user.id);
+      setCurrentStep("dashboard");
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('userId', data.user.id);
+      localStorage.setItem('email', email);
+      localStorage.setItem('username', username);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loginUser(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, username }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      setUserId(data.user.id);
+      setUsername(data.user.username);
+      setEmail(data.user.email);
+      setCurrentStep("dashboard");
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('userId', data.user.id);
+      localStorage.setItem('email', data.user.email);
+      localStorage.setItem('username', data.user.username);
+      
+      // Fetch user schedules after login
+      await fetchUserSchedules();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId) { setError("Create a user first"); return; }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, examDate, topics, availability }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create schedule");
+      setCreatedSchedule(data.schedule);
+      // Fetch updated schedules
+      await fetchUserSchedules();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchUserSchedules() {
+    if (!email || !username) return;
+    
+    try {
+      const res = await fetch("/api/schedules/list", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ email, username }) 
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch schedules");
+      setUserSchedules(data.schedules || []);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function toggleReminders(scheduleId: string, enable: boolean) {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/reminders", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ 
+          scheduleId, 
+          enable,
+          to: email,
+          subject: enable ? "Study Reminder" : "Reminders Disabled",
+          message: enable ? "Time to study!" : "Reminders have been disabled for this schedule."
+        }) 
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to toggle reminders");
+      
+      // Refresh schedules after toggle
+      await fetchUserSchedules();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateTopic(index: number, field: keyof Topic, value: any) {
+    setTopics(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
+  }
+
+  function addTopic() {
+    setTopics(prev => [...prev, { name: "", difficulty: "medium", examDate: "" }]);
+  }
+
+  function removeTopic(index: number) {
+    setTopics(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function updateAvailability(day: keyof Availability, value: number) {
+    setAvailability(prev => ({ ...prev, [day]: value }));
+  }
+
+  function logout() {
+    // Clear localStorage
+    localStorage.removeItem('userId');
+    localStorage.removeItem('email');
+    localStorage.removeItem('username');
+    
+    // Reset state
+    setUserId(null);
+    setEmail("");
+    setUsername("");
+    setCurrentStep("onboarding");
+    setUserSchedules([]);
+    setCreatedSchedule(null);
+  }
+
+  // Load user session from localStorage on component mount
+  useEffect(() => {
+    const savedUserId = localStorage.getItem('userId');
+    const savedEmail = localStorage.getItem('email');
+    const savedUsername = localStorage.getItem('username');
+    
+    if (savedUserId && savedEmail && savedUsername) {
+      setUserId(savedUserId);
+      setEmail(savedEmail);
+      setUsername(savedUsername);
+      setCurrentStep("dashboard");
+    }
+  }, []);
+
+  // Fetch schedules when user is logged in
+  useEffect(() => {
+    if (userId && email && username) {
+      fetchUserSchedules();
+    }
+  }, [userId, email, username]);
+
+  if (currentStep === "onboarding") {
   return (
-    <main style={{ "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties}>
-      <StudyAssistantContent themeColor={themeColor} />
-      <CopilotSidebar
-        clickOutsideToClose={false}
-        defaultOpen={true}
-        labels={{
-          title: "Study Assistant",
-          initial: "👋 Hi! I'm your AI study assistant. I can help you learn better by:\n\n📚 **Summarizing content** - Paste any text and I'll summarize it in your preferred style\n🎯 **Creating flashcards** - Turn summaries into study flashcards\n💬 **Answering questions** - Ask me anything about your study materials\n\nTry saying:\n- \"Summarize this text: [paste your content]\"\n- \"Create flashcards from this summary\"\n- \"What does this concept mean?\"\n\nI'll remember your preferences and adapt to your learning style!"
-        }}
-      />
-    </main>
-  );
-}
-
-function StudyAssistantContent({ themeColor }: { themeColor: string }) {
-  // 🪁 Shared State: https://docs.copilotkit.ai/coagents/shared-state
-
-  
-  const { state } = useCoAgent<AgentState>({
-    name: "studyAssistantAgent",
-    initialState: {
-      userName: "",
-      userPreferences: {
-        preferredSummaryStyle: "detailed",
-        preferredFlashcardStyle: "general",
-        learningLevel: "intermediate",
-      },
-      hasGreeted: false,
-      currentSession: {
-        topics: [],
-        sessionStartTime: new Date().toISOString(),
-      },
-      studyHistory: [],
-      currentResources: [],
-    },
-  })
-
-  //🪁 Generative UI: https://docs.copilotkit.ai/coagents/generative-ui
-  useCopilotAction({
-    name: "summarizeContentTool",
-    description: "Summarize study content with different styles.",
-    available: "frontend",
-    parameters: [
-      { name: "content", type: "string", required: true },
-      { name: "style", type: "string", required: false },
-    ],
-    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
-      return <SummaryCard
-        content={args.content}
-        style={args.style}
-        themeColor={themeColor}
-        result={result}
-        status={status}
-      />
-    },
-  });
-
-  useCopilotAction({
-    name: "generateFlashcardsTool",
-    description: "Generate flashcards from study content.",
-    available: "frontend",
-    parameters: [
-      { name: "content", type: "string", required: true },
-      { name: "style", type: "string", required: false },
-    ],
-    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
-      return <FlashcardCard
-        content={args.content}
-        style={args.style}
-        themeColor={themeColor}
-        result={result}
-        status={status}
-      />
-    },
-  });
-
-  useCopilotAction({
-    name: "chatWithResourceTool",
-    description: "Answer questions about study materials.",
-    available: "frontend",
-    parameters: [
-      { name: "question", type: "string", required: true },
-      { name: "messages", type: "object[]", required: false },
-      { name: "resources", type: "object[]", required: false },
-    ],
-    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
-      return <AnswerCard
-        question={args.question}
-        themeColor={themeColor}
-        result={result}
-        status={status}
-      />
-    },
-  });
-
-  useCopilotAction({
-    name: "updateWorkingMemory",
-    available: "frontend",
-    render: ({ args }) => {
-      return <div style={{ backgroundColor: themeColor }} className="rounded-2xl max-w-md w-full text-white p-4">
-        <p>✨ Memory updated</p>
-        <details className="mt-2">
-          <summary className="cursor-pointer text-white">See updates</summary>
-          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} className="overflow-x-auto text-sm bg-white/20 p-4 rounded-lg mt-2">
-            {JSON.stringify(args, null, 2)}
-          </pre>
-        </details>
-      </div>
-    },
-  });
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="h-screen w-screen flex justify-center items-center flex-col transition-colors duration-300"
-    >
-      <div className="bg-white/20 backdrop-blur-md p-8 rounded-2xl shadow-xl max-w-4xl w-full">
-        <h1 className="text-4xl font-bold text-white mb-2 text-center">Study Assistant</h1>
-        <p className="text-gray-200 text-center italic mb-6">Your AI-powered learning companion 📚</p>
-        
-        {/* User Info */}
-        <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-          <h3 className="text-lg font-semibold mb-2">👤 Your Profile</h3>
-          {state.userName ? (
-            <p>Welcome back, <strong>{state.userName}</strong>!</p>
-          ) : (
-            <p>Tell me your name to personalize your experience</p>
-          )}
-          {state.userPreferences?.learningLevel && (
-            <p className="text-sm opacity-80">Learning Level: {state.userPreferences.learningLevel}</p>
-          )}
+      <main className="min-h-screen bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Study Planner</h1>
+            <p className="text-gray-600">Create your personalized study schedule</p>
         </div>
 
-        {/* Current Session */}
-        {state.currentSession?.topics && state.currentSession.topics.length > 0 && (
-          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-            <h3 className="text-lg font-semibold mb-2">📖 Current Session</h3>
-            <div className="flex flex-wrap gap-2">
-              {state.currentSession.topics.map((topic, index) => (
-                <span key={index} className="bg-white/20 px-3 py-1 rounded-full text-sm">
-                  {topic}
-                </span>
-              ))}
-            </div>
+          {/* Auth Mode Toggle */}
+          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => setAuthMode("signup")}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                authMode === "signup"
+                  ? "bg-white text-orange-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMode("login")}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                authMode === "login"
+                  ? "bg-white text-orange-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Login
+            </button>
           </div>
-        )}
 
-        {/* Study History */}
-        {state.studyHistory && state.studyHistory.length > 0 && (
-          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-            <h3 className="text-lg font-semibold mb-2">📊 Study History</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {state.studyHistory.slice(0, 4).map((item, index) => (
-                <div key={index} className="bg-white/10 p-2 rounded text-sm">
-                  <div className="font-medium">{item.topic}</div>
-                  <div className="text-xs opacity-80">
-                    {item.summaryCount} summaries, {item.flashcardCount} flashcards
-                  </div>
-                </div>
-              ))}
+          {error && <div className="mb-4 p-3 rounded bg-red-100 text-red-800 text-sm">{error}</div>}
+
+          <form onSubmit={authMode === "signup" ? createUser : loginUser} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input 
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black" 
+                type="email" 
+                placeholder="your@email.com" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                required 
+              />
             </div>
-          </div>
-        )}
-
-        {/* Resources */}
-        {state.currentResources && state.currentResources.length > 0 && (
-          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-            <h3 className="text-lg font-semibold mb-2">📄 Current Resources</h3>
-            <div className="space-y-2">
-              {state.currentResources.map((resource, index) => (
-                <div key={index} className="bg-white/10 p-2 rounded text-sm">
-                  <div className="font-medium">{resource.name}</div>
-                  <div className="text-xs opacity-80">
-                    {resource.content.length > 100 
-                      ? `${resource.content.substring(0, 100)}...` 
-                      : resource.content}
-                  </div>
-                </div>
-              ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input 
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black" 
+                type="text" 
+                placeholder="Your username" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                required 
+              />
             </div>
-          </div>
-        )}
+            <button 
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 transition-colors" 
+              disabled={loading} 
+              type="submit"
+            >
+              {loading 
+                ? (authMode === "signup" ? "Creating..." : "Logging in...") 
+                : (authMode === "signup" ? "Get Started" : "Login")
+              }
+            </button>
+          </form>
 
-        <div className="text-center text-white/80 italic">
-          <p>💡 Try asking me to:</p>
-          <p className="text-sm mt-2">
-            "Summarize this text: [paste your content]"<br/>
-            "Create flashcards from this summary"<br/>
-            "What does this concept mean?"
-          </p>
+          <div className="mt-4 text-center text-sm text-gray-600">
+            {authMode === "signup" ? (
+              <>Already have an account? <button onClick={() => setAuthMode("login")} className="text-orange-600 hover:text-orange-700 font-medium">Login here</button></>
+            ) : (
+              <>Don't have an account? <button onClick={() => setAuthMode("signup")} className="text-orange-600 hover:text-orange-700 font-medium">Sign up here</button></>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// Summary card component for displaying summarized content
-function SummaryCard({
-  content,
-  style,
-  themeColor,
-  result,
-  status
-}: {
-  content?: string,
-  style?: string,
-  themeColor: string,
-  result: any,
-  status: "inProgress" | "executing" | "complete"
-}) {
-  if (status !== "complete") {
-    return (
-      <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-        style={{ backgroundColor: themeColor }}
-      >
-        <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">📚 Summarizing content...</p>
-        </div>
-      </div>
-    )
+      </main>
+    );
   }
 
   return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold text-white">📚 Summary</h3>
-          <span className="text-sm text-white/80 bg-white/20 px-2 py-1 rounded">
-            {style || "detailed"}
-          </span>
-        </div>
-        
-        <div className="text-white whitespace-pre-wrap">
-          {result?.summary || "Summary not available"}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Flashcard card component for displaying generated flashcards
-function FlashcardCard({
-  content,
-  style,
-  themeColor,
-  result,
-  status
-}: {
-  content?: string,
-  style?: string,
-  themeColor: string,
-  result: any,
-  status: "inProgress" | "executing" | "complete"
-}) {
-  if (status !== "complete") {
-    return (
-      <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-        style={{ backgroundColor: themeColor }}
-      >
-        <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">🎯 Generating flashcards...</p>
+    <main className="min-h-screen bg-gray-100">
+      <div className="bg-orange-600 text-white py-4 px-6">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Study Planner Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-sm">
+              Welcome, <span className="font-medium">{username}</span>
+            </div>
+            <button
+              onClick={logout}
+              className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
-    )
-  }
 
-  const flashcards = result?.flashcards || [];
+      <div className="max-w-6xl mx-auto p-6">
+        {error && <div className="mb-6 p-4 rounded-lg bg-red-100 text-red-800">{error}</div>}
 
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold text-white">🎯 Flashcards</h3>
-          <span className="text-sm text-white/80 bg-white/20 px-2 py-1 rounded">
-            {style || "general"}
-          </span>
-        </div>
-        
-        <div className="space-y-3">
-          {flashcards.map((card: any, index: number) => (
-            <div key={index} className="bg-white/10 p-3 rounded-lg">
-              <div className="text-white">
-                <div className="font-semibold mb-2">Q: {card.question}</div>
-                <div className="text-sm opacity-90">A: {card.answer}</div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Create Study Plan */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Create Study Plan</h2>
+            <form onSubmit={createSchedule} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Final exam date</label>
+                <input 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black" 
+                  type="date" 
+                  value={examDate} 
+                  onChange={(e) => setExamDate(e.target.value)} 
+                  required 
+                />
               </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Topics</label>
+                  <button 
+                    type="button" 
+                    onClick={addTopic} 
+                    className="text-sm bg-orange-100 text-orange-700 px-3 py-1 rounded-lg hover:bg-orange-200 transition-colors"
+                  >
+                    + Add topic
+                  </button>
+        </div>
+        <div className="space-y-3">
+                  {topics.map((t, i) => (
+                    <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                      <input 
+                        className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black" 
+                        placeholder="Topic name" 
+                        value={t.name} 
+                        onChange={(e) => updateTopic(i, "name", e.target.value)} 
+                        required 
+                      />
+                      <select 
+                        className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black" 
+                        value={t.difficulty} 
+                        onChange={(e) => updateTopic(i, "difficulty", e.target.value)}
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                      </select>
+                      <input 
+                        className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black" 
+                        type="date" 
+                        value={t.examDate} 
+                        onChange={(e) => updateTopic(i, "examDate", e.target.value)} 
+                        required 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => removeTopic(i)} 
+                        className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Weekly availability (hours per day)</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {(["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] as (keyof Availability)[]).map((day) => (
+                    <div key={day} className="flex items-center gap-2">
+                      <span className="w-20 capitalize text-sm text-gray-600">{day}</span>
+                      <input 
+                        className="border border-gray-300 rounded-lg px-2 py-1 w-16 focus:outline-none focus:ring-2 focus:ring-orange-500 text-black" 
+                        type="number" 
+                        min={0} 
+                        max={24} 
+                        value={availability[day]} 
+                        onChange={(e) => updateAvailability(day, Number(e.target.value))} 
+                      />
             </div>
           ))}
         </div>
       </div>
-    </div>
-  );
-}
 
-// Answer card component for displaying Q&A responses
-function AnswerCard({
-  question,
-  themeColor,
-  result,
-  status
-}: {
-  question?: string,
-  themeColor: string,
-  result: any,
-  status: "inProgress" | "executing" | "complete"
-}) {
-  if (status !== "complete") {
-    return (
-      <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-        style={{ backgroundColor: themeColor }}
-      >
-        <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">💬 Thinking about your question...</p>
-        </div>
-      </div>
-    )
-  }
+              <button 
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 transition-colors" 
+                disabled={loading} 
+                type="submit"
+              >
+                {loading ? "Generating..." : "Generate & Save Schedule"}
+              </button>
+            </form>
 
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold text-white">💬 Answer</h3>
+            {createdSchedule && (
+              <div className="mt-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h3 className="font-semibold text-gray-900 mb-2">✅ Schedule Created!</h3>
+                <pre className="text-xs text-gray-600 overflow-x-auto bg-white p-2 rounded border">
+                  {JSON.stringify(createdSchedule.data, null, 2)}
+                </pre>
+              </div>
+            )}
         </div>
         
-        <div className="text-white mb-3">
-          <div className="font-semibold">Q: {question}</div>
+          {/* My Schedules */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">My Schedules</h2>
+            
+            {userSchedules.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No schedules created yet.</p>
+                <p className="text-sm mt-1">Create your first study plan to get started!</p>
+        </div>
+            ) : (
+              <div className="space-y-4">
+                {userSchedules.map((schedule) => {
+                  const scheduleData = schedule.data;
+                  const topics = scheduleData?.schedule || [];
+                  const uniqueTopics = [...new Set(topics.map((item: any) => item.topic))];
+                  const difficulties = [...new Set(topics.map((item: any) => item.difficulty))];
+                  
+                  return (
+                    <div key={schedule.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-900 mb-1">
+                            Topics: {uniqueTopics.join(", ")}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span>Difficulties: {difficulties.join(", ")}</span>
+                            <span>Created: {new Date(schedule.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => toggleReminders(schedule.id, true)}
+                            className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors"
+                            disabled={loading}
+                          >
+                            Enable Reminders
+                          </button>
+                          <button
+                            onClick={() => toggleReminders(schedule.id, false)}
+                            className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors"
+                            disabled={loading}
+                          >
+                            Disable Reminders
+                          </button>
+                        </div>
         </div>
         
-        <div className="text-white whitespace-pre-wrap">
-          {result?.answer || "Answer not available"}
-        </div>
-        
-        {result?.usedResources && result.usedResources.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-white/20">
-            <div className="text-sm text-white/80">
-              📄 Used resources: {result.usedResources.join(", ")}
+                      <details className="text-sm">
+                        <summary className="cursor-pointer text-gray-600 hover:text-gray-800">
+                          View Schedule Details
+                        </summary>
+                        <pre className="mt-2 text-xs text-gray-600 overflow-x-auto bg-white p-2 rounded border">
+                          {JSON.stringify(scheduleData, null, 2)}
+                        </pre>
+                      </details>
             </div>
+                  );
+                })}
           </div>
         )}
       </div>
     </div>
+      </div>
+    </main>
   );
 }
