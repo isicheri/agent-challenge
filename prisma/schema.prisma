@@ -22,14 +22,11 @@ model User {
 
 model Schedule {
   id         String   @id  @default(uuid())
-  // topic      String
-  // date       DateTime
-  // duration   Int          // hours
-  // difficulty String       // "easy" | "medium" | "hard"
   data   Json
   userId     String
   user       User     @relation(fields: [userId], references: [id])
   progress   StudyProgress?
+  createdAt  DateTime       @default(now())
 }
 
 model StudyProgress {

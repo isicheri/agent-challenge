@@ -1,5 +1,6 @@
 "use client";
 
+import { ConsoleLogger } from "@mastra/core/logger";
 import { useState, useEffect } from "react";
 
 type Topic = { name: string; difficulty: "easy" | "medium" | "hard"; examDate: string };
@@ -100,11 +101,31 @@ export default function StudyPlannerApp() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch schedules");
+      console.log(data.schedules)
       setUserSchedules(data.schedules || []);
     } catch (err: any) {
       setError(err.message);
     }
   }
+
+ async function deleteUserSchedule(userId: string, scheduleId: string) {
+  if (!userId || !scheduleId) return;
+  try {
+    setLoading(true);
+    const res = await fetch("/api/schedules/delete", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, scheduleId }),
+    });
+    if (!res.ok) throw new Error("Failed to delete schedule");
+    await fetchUserSchedules(); // 👈 refresh list
+  } catch (error: any) {
+    setError(error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   async function toggleReminders(scheduleId: string, enable: boolean) {
     setError(null);
@@ -408,7 +429,7 @@ export default function StudyPlannerApp() {
                 {userSchedules.map((schedule) => {
                   const scheduleData = schedule.data;
                   const topics = scheduleData?.schedule || [];
-                  const uniqueTopics = [...new Set(topics.map((item: any) => item.topic))];
+                 const uniqueTopics = [...new Set(topics.map((item: any) => item.topic || item.subject))];
                   const difficulties = [...new Set(topics.map((item: any) => item.difficulty))];
                   
                   return (
@@ -423,22 +444,38 @@ export default function StudyPlannerApp() {
                             <span>Created: {new Date(schedule.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => toggleReminders(schedule.id, true)}
-                            className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors"
-                            disabled={loading}
-                          >
-                            Enable Reminders
-                          </button>
-                          <button
-                            onClick={() => toggleReminders(schedule.id, false)}
-                            className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors"
-                            disabled={loading}
-                          >
-                            Disable Reminders
-                          </button>
-                        </div>
+                     <div className="flex gap-2">
+  <button
+    onClick={() => toggleReminders(schedule.id, true)}
+    className="
+      px-3 py-1
+      bg-green-100 text-green-700
+      rounded-lg text-sm
+      hover:bg-green-200 hover:scale-105
+      transition-all duration-200 ease-out
+      focus:outline-none focus:ring-2 focus:ring-green-500
+    "
+    disabled={loading}
+  >
+    Enable Reminders
+  </button>
+
+  <button
+    onClick={() => deleteUserSchedule(userId!, schedule.id)}
+    className="
+      px-3 py-1
+      bg-red-100 text-red-700
+      rounded-lg text-sm
+      hover:bg-red-200 hover:scale-105
+      transition-all duration-200 ease-out
+      focus:outline-none focus:ring-2 focus:ring-red-500
+    "
+    disabled={loading}
+  >
+    Delete Schedule
+  </button>
+</div>
+
         </div>
         
                       <details className="text-sm">
