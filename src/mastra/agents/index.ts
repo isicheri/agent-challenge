@@ -36,7 +36,8 @@ The response format must be EXACTLY:
       "subject": "string",
       "hours": number
     }
-  ]
+  ],
+  warning: "string" 
 }
 
 RULES:
