@@ -5,28 +5,29 @@ import z from "zod";
 
 const model = mistral("mistral-small-latest");
 
-// 🧩 Define output schema separately
-const studyPlannerOutputSchema = z.array(
-  z.object({
-    range: z.string(),
-    topic: z.string(),
-    subtopics: z.array(
-      z.object({
-        t: z.string(),
-        completed: z.boolean().default(false)
-      })
-    )
-  })
-);
+// ✅ Output schema must be an object at the top level
+const studyPlannerOutputSchema = z.object({
+  plan: z.array(
+    z.object({
+      range: z.string(),
+      topic: z.string(),
+      subtopics: z.array(
+        z.object({
+          t: z.string(),
+          completed: z.boolean().default(false),
+        })
+      ),
+    })
+  ),
+});
 
 // 🧠 Prompt generator
 const generatePrompt = (topic: string, durationUnit: string, durationValue: number) => {
   const breakdownMap = {
     days: "hours",
     weeks: "days",
-    months: "weeks"
+    months: "weeks",
   };
-
   const breakdown = breakdownMap[durationUnit as keyof typeof breakdownMap];
 
   return `
@@ -38,16 +39,15 @@ You must:
 2. For each ${breakdown}, include:
    - "range": A human-readable label like "Day 1 - Day 3" or "Week 2 - Week 3".
    - "topic": A clear focus or milestone topic for that period.
-   - "subtopics": An array of 3–6 subtopics. Each subtopic must be an object with the keys:
+   - "subtopics": An array of 3–6 subtopics. Each subtopic must be an object with:
        • "t": the name of the subtopic (string)
-       • "completed": a boolean, always set to false
+       • "completed": a boolean, always false
 
-📘 Important formatting rules:
-- The response must be **pure valid JSON**, with no markdown, no comments, no extra text.
-- Do not include explanations or reasoning.
-- Do not wrap the JSON in code fences.
+📘 Important:
+- Return **pure JSON only** — no markdown, no explanations, no comments.
+- Do not wrap JSON in code fences.
 
-✅ Example output:
+✅ Example:
 
 [
   {
@@ -70,11 +70,8 @@ You must:
     ]
   }
 ]
-
-Remember: output **only** JSON following this exact structure.
   `;
 };
-
 
 // 🛠️ Tool definition
 export const studyPlannerTool = createTool({
@@ -83,7 +80,7 @@ export const studyPlannerTool = createTool({
   inputSchema: z.object({
     topic: z.string().min(1, "Topic is required"),
     durationUnit: z.enum(["days", "weeks", "months"]),
-    durationValue: z.number().min(1, "Duration must be at least 1")
+    durationValue: z.number().min(1, "Duration must be at least 1"),
   }),
   outputSchema: studyPlannerOutputSchema,
   execute: async ({ context }) => {
@@ -95,28 +92,35 @@ export const studyPlannerTool = createTool({
       model,
       prompt,
       maxOutputTokens: 800,
-      temperature: 0.5
+      temperature: 0.5,
     });
 
     let parsed: unknown;
-
     try {
       parsed = JSON.parse(aiResult.text);
     } catch {
-      try {
-        const cleaned = aiResult.text
-          .replace(/```json|```/g, "")
-          .replace(/[\u0000-\u001F]+/g, "")
-          .trim();
-        parsed = JSON.parse(cleaned);
-      } catch (finalErr) {
-        console.error("❌ Failed to parse AI output:", aiResult.text);
-        throw new Error("Invalid AI response: could not parse JSON");
-      }
+      const cleaned = aiResult.text
+        .replace(/```json|```/g, "")
+        .replace(/[\u0000-\u001F]+/g, "")
+        .trim();
+      parsed = JSON.parse(cleaned);
     }
 
-    const validated = studyPlannerOutputSchema.parse(parsed);
-    console.log("✅ Study Plan Generated:", validated);
-    return validated;
-  }
+    const validated = z
+      .array(
+        z.object({
+          range: z.string(),
+          topic: z.string(),
+          subtopics: z.array(
+            z.object({
+              t: z.string(),
+              completed: z.boolean(),
+            })
+          ),
+        })
+      )
+      .parse(parsed);
+
+    return { plan: validated };
+  },
 });
