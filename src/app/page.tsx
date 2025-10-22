@@ -411,6 +411,11 @@ export default function StudyPlannerApp() {
                 <pre className="text-xs text-gray-600 overflow-x-auto bg-white p-2 rounded border">
                   {JSON.stringify(createdSchedule.data, null, 2)}
                 </pre>
+                  {createdSchedule.data.warning && (
+      <div className="mt-2 p-2 bg-yellow-100 text-yellow-800 rounded text-sm">
+        ⚠ {createdSchedule.data.warning}
+      </div>
+    )}
               </div>
             )}
         </div>

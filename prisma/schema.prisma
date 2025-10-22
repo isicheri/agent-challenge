@@ -21,19 +21,11 @@ model User {
 }
 
 model Schedule {
-  id         String   @id  @default(uuid())
-  data   Json
+  id         String    @id @default(uuid())
+  title      String
+  data       Json      // holds the AI-generated plan (with progress + completion)
   userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  progress   StudyProgress?
-  createdAt  DateTime       @default(now())
+  user       User      @relation(fields: [userId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
-
-model StudyProgress {
-  id         String   @id @default(uuid())
-  status     String    // e.g. "pending", "completed", "missed"
-  duration   Int?      // actual time studied (optional)
-  scheduleId String @unique
-  schedule   Schedule  @relation(fields: [scheduleId], references: [id])
-}
-

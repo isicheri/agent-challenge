@@ -24,28 +24,7 @@ export const studyPlannerAgent = new Agent({
   tools: await mcpClient.getTools(),
   model: mistral("mistral-small-latest"),
   description: "",
-  instructions: `
-You are a study planning assistant. When generating a study schedule, you MUST return ONLY valid JSON with no markdown, no comments, no natural language, and no explanations.
-
-The response format must be EXACTLY:
-
-{
-  "schedule": [
-    {
-      "date": "YYYY-MM-DD",
-      "subject": "string",
-      "hours": number
-    }
-  ],
-  warning: "string" 
-}
-
-RULES:
-- Do NOT wrap the JSON in markdown.
-- Do NOT include bullet points, introductions, or extra text.
-- Do NOT include keys other than "schedule".
-- Dates must strictly follow YYYY-MM-DD format.
-- ONLY return the JSON object.`,
+  instructions: ``,
   memory: new Memory({
     storage: new LibSQLStore({ url: "file::memory:" }),
     options: {
