@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 
-type Plan = { range: string; topic: string; subtopics: { t: string; completed: boolean }[] };
+type Subtopic = { id: string; title: string; completed: boolean };
+type PlanItem = { id: string; range: string; topic: string; subtopics: Subtopic[] };
+type ScheduleType = { id: string; title: string; createdAt: string; planItems: PlanItem[] };
 
 export default function StudyPlannerApp() {
   const [currentStep, setCurrentStep] = useState<"onboarding" | "dashboard">("onboarding");
@@ -14,11 +16,23 @@ export default function StudyPlannerApp() {
   const [durationUnit, setDurationUnit] = useState<"days" | "weeks" | "months">("weeks");
   const [durationValue, setDurationValue] = useState<number>(1);
 
-  const [generatedPlan, setGeneratedPlan] = useState<Plan[] | null>(null);
+  const [generatedPlan, setGeneratedPlan] = useState<PlanItem[] | null>(null);
   const [createdSchedule, setCreatedSchedule] = useState<any | null>(null);
-  const [userSchedules, setUserSchedules] = useState<any[]>([]);
+  const [userSchedules, setUserSchedules] = useState<ScheduleType[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+    const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+
+    const toggleExpand = (id: string) => {
+    setExpandedSchedules((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
 
   /* ------------------- Auth ------------------- */
   async function createUser(e: React.FormEvent) {
@@ -96,18 +110,21 @@ export default function StudyPlannerApp() {
   }
 
   async function fetchUserSchedules() {
-    if (!userId) return;
-    try {
-      const res = await fetch("/api/schedules/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to fetch schedules");
-      setUserSchedules(data.schedules || []);
-    } catch (err: any) { setError(err.message); }
+  if (!email || !username) return;
+
+  try {
+    const res = await fetch("/api/schedules/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, username }), // <-- send these
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to fetch schedules");
+    setUserSchedules(data.schedules || []);
+  } catch (err: any) {
+    setError(err.message);
   }
+}
 
   async function deleteUserSchedule(scheduleId: string) {
     if (!userId || !scheduleId) return;
@@ -144,6 +161,48 @@ export default function StudyPlannerApp() {
       await fetchUserSchedules();
     } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   }
+
+  async function toggleSubtopicCompleted(scheduleId: string, range: string, subIdx: number, completed: boolean) {
+  if (!userId) return;
+  setLoading(true);
+  setError(null);
+
+  try {
+    const res = await fetch("/api/subtopic/update", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduleId, range, subIdx, completed })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to update subtopic");
+
+    // Update local state so progress bar updates instantly
+  setUserSchedules(prev =>
+  prev.map(s => {
+    if (s.id !== scheduleId) return s;
+    return {
+      ...s,
+      planItems: s.planItems.map(item => {
+        if (item.range !== range) return item;
+        return {
+          ...item,
+          subtopics: item.subtopics.map((sub, idx) =>
+            idx === subIdx ? { ...sub, completed } : sub
+          ),
+        };
+      }),
+    };
+  })
+);
+
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   function logout() {
     localStorage.clear();
@@ -211,7 +270,7 @@ export default function StudyPlannerApp() {
 
         {/* Create & Preview Schedule */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Create Study Plan</h2>
+          <h2 className="text-xl font-semibold mb-4 text-black">Create Study Plan</h2>
           <form onSubmit={generatePlan} className="space-y-4">
             <input type="text" placeholder="Topic" value={topicInput} onChange={e=>setTopicInput(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black" required />
             <div className="flex gap-2">
@@ -227,8 +286,8 @@ export default function StudyPlannerApp() {
 
           {generatedPlan && (
             <div className="mt-6 border p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold mb-2">📄 Preview Plan</h3>
-              <pre className="text-xs overflow-x-auto">{JSON.stringify(generatedPlan, null, 2)}</pre>
+              <h3 className="font-semibold mb-2 text-black">📄 Preview Plan</h3>
+              <pre className="text-xs overflow-x-auto text-black">{JSON.stringify(generatedPlan, null, 2)}</pre>
               <button onClick={saveGeneratedPlan} className="mt-3 w-full bg-green-600 text-white py-2 rounded-lg" disabled={loading}>{loading?"Saving...":"Save Schedule"}</button>
             </div>
           )}
@@ -248,24 +307,92 @@ export default function StudyPlannerApp() {
             <div className="text-center py-8 text-gray-500">No schedules yet. Create your first plan!</div>
           ) : (
             <div className="space-y-4">
-              {userSchedules.map(s => (
-                <div key={s.id} className="border p-4 rounded bg-gray-50">
-                  <div className="flex justify-between mb-2">
-                    <div>
-                      <div className="text-sm text-gray-600">Created: {new Date(s.createdAt).toLocaleDateString()}</div>
-                      <div className="font-medium">{s.title}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={()=>toggleReminders(s.id, true)} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm">Enable Reminders</button>
-                      <button onClick={()=>deleteUserSchedule(s.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm">Delete</button>
-                    </div>
-                  </div>
-                  <details>
-                    <summary className="cursor-pointer text-gray-600">View Details</summary>
-                    <pre className="text-xs mt-2 bg-white p-2 rounded border overflow-x-auto">{JSON.stringify(s.data, null, 2)}</pre>
-                  </details>
-                </div>
+ {userSchedules.map((s) => {
+  const isExpanded = expandedSchedules.has(s.id);
+
+  // Calculate overall progress
+  const totalSubtopics = s.planItems?.reduce((acc, item) => acc + (item.subtopics?.length ?? 0), 0) ?? 0;
+  const completedSubtopics = s.planItems?.reduce(
+    (acc, item) => acc + (item.subtopics?.filter((sub) => sub.completed).length ?? 0),
+    0
+  ) ?? 0;
+  const scheduleProgress = totalSubtopics ? (completedSubtopics / totalSubtopics) * 100 : 0;
+
+  return (
+    <div key={s.id} className="border p-4 rounded bg-gray-50">
+      <div className="flex justify-between mb-2 items-center">
+        <div onClick={() => toggleExpand(s.id)} className="cursor-pointer">
+          <div className="text-sm text-gray-600">
+            Created: {new Date(s.createdAt).toLocaleDateString()}
+          </div>
+          <div className="font-medium text-black">{s.title}</div>
+          {/* Schedule-level progress */}
+          <div className="mt-1 h-3 w-full bg-gray-200 rounded relative">
+            <div
+              className="h-3 bg-blue-500 rounded"
+              style={{ width: `${scheduleProgress}%` }}
+            ></div>
+            <span className="absolute right-2 top-0 text-xs text-black">{`${Math.round(scheduleProgress)}%`}</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => toggleReminders(s.id, true)}
+            className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm"
+          >
+            Enable Reminders
+          </button>
+          <button
+            onClick={() => deleteUserSchedule(s.id)}
+            className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="space-y-4 mt-2">
+          {s.planItems?.map((item) => (
+            <div key={item.id} className="border p-2 rounded bg-gray-50">
+              <div className="font-semibold mb-1 text-black">{item.topic}</div>
+
+              {item.subtopics?.map((sub, idx) => (
+                <label key={sub.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={sub.completed}
+                    onChange={() =>
+                      toggleSubtopicCompleted(s.id, item.range, idx, !sub.completed)
+                    }
+                  />
+                  <span className={sub.completed ? "line-through text-gray-400" : "text-black"}>
+                    {sub.title}
+                  </span>
+                </label>
               ))}
+
+              {/* PlanItem progress bar */}
+              <div className="h-2 w-full bg-gray-200 rounded mt-2">
+                <div
+                  className="h-2 bg-green-500 rounded"
+                  style={{
+                    width: `${
+                      (item.subtopics?.filter((s) => s.completed).length ?? 0) /
+                      (item.subtopics?.length ?? 1) *
+                      100
+                    }%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+})}
+
             </div>
           )}
         </div>

@@ -25,14 +25,14 @@ export async function POST(request: Request) {
     }
 
     // Fetch all schedules for this user
-    const schedules = await prisma.schedule.findMany({
-      where: {
-        userId: user.id
-      }
-      // orderBy: {
-      //   createdAt: 'desc'
-      // }
-    });
+  const schedules = await prisma.schedule.findMany({
+  where: { userId: user.id },
+  include: {
+    planItems: {
+      include: { subtopics: true },
+    },
+  },
+});
 
     return NextResponse.json({ schedules }, { status: 200 });
   } catch (error: any) {
