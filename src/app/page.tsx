@@ -162,6 +162,10 @@ export default function StudyPlannerApp() {
     } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   }
 
+
+  // TODO: make this functional
+  // async function viewScheduleDetails(userId: string,username: string,scheduleId: string) {}
+
   async function toggleSubtopicCompleted(scheduleId: string, range: string, subIdx: number, completed: boolean) {
   if (!userId) return;
   setLoading(true);
@@ -202,7 +206,6 @@ export default function StudyPlannerApp() {
     setLoading(false);
   }
 }
-
 
   function logout() {
     localStorage.clear();
@@ -325,7 +328,7 @@ export default function StudyPlannerApp() {
           <div className="text-sm text-gray-600">
             Created: {new Date(s.createdAt).toLocaleDateString()}
           </div>
-          <div className="font-medium text-black">{s.title}</div>
+          <div className="font-bold text-black">{s.title.toUpperCase()}</div>
           {/* Schedule-level progress */}
           <div className="mt-1 h-3 w-full bg-gray-200 rounded relative">
             <div
@@ -353,40 +356,41 @@ export default function StudyPlannerApp() {
 
       {isExpanded && (
         <div className="space-y-4 mt-2">
-          {s.planItems?.map((item) => (
-            <div key={item.id} className="border p-2 rounded bg-gray-50">
-              <div className="font-semibold mb-1 text-black">{item.topic}</div>
+       {s.planItems?.map((item) => (
+  <div key={item.id} className="border p-2 rounded bg-gray-50">
+    <div className="font-semibold mb-1 text-black">{item.topic}</div>
 
-              {item.subtopics?.map((sub, idx) => (
-                <label key={sub.id} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={sub.completed}
-                    onChange={() =>
-                      toggleSubtopicCompleted(s.id, item.range, idx, !sub.completed)
-                    }
-                  />
-                  <span className={sub.completed ? "line-through text-gray-400" : "text-black"}>
-                    {sub.title}
-                  </span>
-                </label>
-              ))}
+    {item.subtopics?.map((sub, idx) => (
+      <label key={sub.id} className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={sub.completed}
+          onChange={() =>
+            toggleSubtopicCompleted(s.id, item.range, idx, !sub.completed)
+          }
+        />
+        <span className={sub.completed ? "line-through text-gray-400" : "text-black"}>
+          {sub.title} <span className="text-xs text-gray-500">({item.range})</span>
+        </span>
+      </label>
+    ))}
 
-              {/* PlanItem progress bar */}
-              <div className="h-2 w-full bg-gray-200 rounded mt-2">
-                <div
-                  className="h-2 bg-green-500 rounded"
-                  style={{
-                    width: `${
-                      (item.subtopics?.filter((s) => s.completed).length ?? 0) /
-                      (item.subtopics?.length ?? 1) *
-                      100
-                    }%`,
-                  }}
-                ></div>
-              </div>
-            </div>
-          ))}
+    {/* PlanItem progress bar */}
+    <div className="h-2 w-full bg-gray-200 rounded mt-2">
+      <div
+        className="h-2 bg-green-500 rounded"
+        style={{
+          width: `${
+            (item.subtopics?.filter((s) => s.completed).length ?? 0) /
+            (item.subtopics?.length ?? 1) *
+            100
+          }%`,
+        }}
+      ></div>
+    </div>
+  </div>
+))}
+
         </div>
       )}
     </div>
