@@ -31,6 +31,8 @@ export async function POST(request: Request) {
       },
     ]);
 
+    // 🔹 Add this log
+console.log("raw agent output:", result.text);
 
     const raw = (result.text ?? "").trim();
     if (!raw) return NextResponse.json({ error: "Agent returned no output" }, { status: 502 });
@@ -40,6 +42,9 @@ export async function POST(request: Request) {
     if (!match) return NextResponse.json({ error: "No JSON found in agent output" }, { status: 502 });
 
     const parsed = JSON.parse(match[0]);
+
+    // 🔹 Add this log
+console.log("parsed agent output:", parsed);
 
     // Expecting { plan: [...] }
     return NextResponse.json({ plan: parsed.plan ?? parsed }, { status: 200 });

@@ -22,6 +22,56 @@ const studyPlannerOutputSchema = z.object({
 });
 
 // 🧠 Prompt generator
+// const generatePrompt = (topic: string, durationUnit: string, durationValue: number) => {
+//   const breakdownMap = {
+//     days: "hours",
+//     weeks: "days",
+//     months: "weeks",
+//   };
+//   const breakdown = breakdownMap[durationUnit as keyof typeof breakdownMap];
+
+//   return `
+// You are an expert study planner and subject matter specialist.
+// Your task is to create a structured, step-by-step study plan that helps a student *master* the topic "${topic}" within ${durationValue} ${durationUnit}.
+
+// You must:
+// 1. Break the total study duration into smaller ${breakdown} intervals that logically progress from fundamentals to advanced understanding.
+// 2. For each ${breakdown}, include:
+//    - "range": A human-readable label like "Day 1 - Day 3" or "Week 2 - Week 3".
+//    - "topic": A clear focus or milestone topic for that period.
+//    - "subtopics": An array of 3–6 subtopics. Each subtopic must be an object with:
+//        • "t": the name of the subtopic (string)
+//        • "completed": a boolean, always false
+
+// 📘 Important:
+// - Return **pure JSON only** — no markdown, no explanations, no comments.
+// - Do not wrap JSON in code fences.
+
+// ✅ Example:
+
+// [
+//   {
+//     "range": "Day 1 - Day 3",
+//     "topic": "Foundations of Linear Differentiation",
+//     "subtopics": [
+//       { "t": "Understand functions and slopes", "completed": false },
+//       { "t": "Explore the concept of limits", "completed": false },
+//       { "t": "Learn how derivatives are defined", "completed": false },
+//       { "t": "Basic derivative rules", "completed": false }
+//     ]
+//   },
+//   {
+//     "range": "Day 4 - Day 7",
+//     "topic": "Differentiation Techniques",
+//     "subtopics": [
+//       { "t": "Power rule, product rule, quotient rule", "completed": false },
+//       { "t": "Chain rule and implicit differentiation", "completed": false },
+//       { "t": "Practice differentiation with complex functions", "completed": false }
+//     ]
+//   }
+// ]
+//   `;
+// };
 const generatePrompt = (topic: string, durationUnit: string, durationValue: number) => {
   const breakdownMap = {
     days: "hours",
@@ -32,26 +82,29 @@ const generatePrompt = (topic: string, durationUnit: string, durationValue: numb
 
   return `
 You are an expert study planner and subject matter specialist.
-Your task is to create a structured, step-by-step study plan that helps a student *master* the topic "${topic}" within ${durationValue} ${durationUnit}.
+Create a structured, step-by-step study plan that helps a student *master* the topic "${topic}" within ${durationValue} ${durationUnit}.
 
-You must:
-1. Break the total study duration into smaller ${breakdown} intervals that logically progress from fundamentals to advanced understanding.
-2. For each ${breakdown}, include:
-   - "range": A human-readable label like "Day 1 - Day 3" or "Week 2 - Week 3".
-   - "topic": A clear focus or milestone topic for that period.
+Requirements:
+1. Break the total study duration into smaller ${breakdown} intervals, progressing logically from fundamentals to advanced understanding.
+2. Assign **realistic, human-readable time ranges** for each interval, e.g. "10am - 1pm", "2pm - 5pm". Make it practical so a student can follow it day by day.
+3. For each interval, include:
+   - "range": The realistic study period (e.g., "Day 1: 10am - 1pm", or "Week 1: Mon-Wed").
+   - "topic": The main focus for that interval.
    - "subtopics": An array of 3–6 subtopics. Each subtopic must be an object with:
        • "t": the name of the subtopic (string)
-       • "completed": a boolean, always false
+       • "completed": boolean, always false
 
 📘 Important:
 - Return **pure JSON only** — no markdown, no explanations, no comments.
 - Do not wrap JSON in code fences.
+- Make the ranges intuitive, achievable, and distributed reasonably across the total duration.
+- Total hours or days should not exceed the input duration.
 
 ✅ Example:
 
 [
   {
-    "range": "Day 1 - Day 3",
+    "range": "Day 1: 10am - 1pm",
     "topic": "Foundations of Linear Differentiation",
     "subtopics": [
       { "t": "Understand functions and slopes", "completed": false },
@@ -61,7 +114,7 @@ You must:
     ]
   },
   {
-    "range": "Day 4 - Day 7",
+    "range": "Day 1: 2pm - 5pm",
     "topic": "Differentiation Techniques",
     "subtopics": [
       { "t": "Power rule, product rule, quotient rule", "completed": false },
@@ -72,6 +125,7 @@ You must:
 ]
   `;
 };
+
 
 // 🛠️ Tool definition
 export const studyPlannerTool = createTool({
@@ -120,6 +174,8 @@ export const studyPlannerTool = createTool({
         })
       )
       .parse(parsed);
+
+      console.log(validated);
 
     return { plan: validated };
   },
