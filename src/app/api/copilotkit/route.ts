@@ -6,7 +6,8 @@ import {
 import { MastraAgent } from "@ag-ui/mastra"
 import { NextRequest } from "next/server";
 import { mastra } from "@/mastra";
- 
+
+
 // 1. You can use any service adapter here for multi-agent support.
 const serviceAdapter = new ExperimentalEmptyAdapter();
 

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
      await studyPlannerAgent.generate([
       {
         role: "user",
-        content: `Send a reminder email to ${to} with subject: ${subject} and message: ${message}`
+        content: ``
       }
     ]);
 

@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 
+
 type Subtopic = { id: string; title: string; completed: boolean };
 type PlanItem = { id: string; range: string; topic: string; subtopics: Subtopic[] };
 type ScheduleType = { id: string; title: string; createdAt: string; planItems: PlanItem[] };
 
 export default function StudyPlannerApp() {
+
   const [currentStep, setCurrentStep] = useState<"onboarding" | "dashboard">("onboarding");
   const [authMode, setAuthMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
@@ -24,6 +26,8 @@ export default function StudyPlannerApp() {
   const [error, setError] = useState<string | null>(null);
 
     const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+
+   
 
     const toggleExpand = (id: string) => {
     setExpandedSchedules((prev) => {

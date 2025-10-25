@@ -8,18 +8,18 @@ import { mcpClient } from "../mcp/client";
 
 export const AgentState = z.object({
   user: z.object({
-    id: z.string().optional(),
     email: z.string().optional(),
     username: z.string().optional(),
   }).optional(),
   currentSchedule: z
     .array(
       z.object({
-        date: z.string(),
-        topic: z.string(),
-        duration: z.number(),
-        difficulty: z.enum(["easy", "medium", "hard"]),
-        completed: z.boolean().default(false)
+        range: z.string(), 
+        topic: z.string(), 
+       subtopics: z.array(z.object({
+        title: z.string(),
+        completed: z.boolean()
+       }))
       })
     )
     .optional(),
