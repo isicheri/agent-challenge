@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 
 type Subtopic = { id: string; title: string; completed: boolean };
 type PlanItem = { id: string; range: string; topic: string; subtopics: Subtopic[] };
-type ScheduleType = { id: string; title: string; createdAt: string; planItems: PlanItem[] };
+type ScheduleType = { id: string; title: string; remindersEnabled: boolean;
+startDate: string | null; 
+  createdAt: string; planItems: PlanItem[] };
 
 export default function StudyPlannerApp() {
 
@@ -356,12 +358,16 @@ async function toggleReminders(scheduleId: string, enable: boolean) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => toggleReminders(s.id, true)}
-            className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm"
-          >
-            Enable Reminders
-          </button>
+   <button
+  onClick={() => toggleReminders(s.id, !s.remindersEnabled)}
+  className={`px-3 py-1 rounded text-sm ${
+    s.remindersEnabled 
+      ? 'bg-red-100! text-red-700!' 
+      : 'bg-green-100 text-green-700!'
+  }`}
+>
+  {s.remindersEnabled ? '🔔 Reminders ON' : '🔕 Enable Reminders'}
+</button>
           <button
             onClick={() => deleteUserSchedule(s.id)}
             className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm"
