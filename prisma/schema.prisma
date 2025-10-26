@@ -25,6 +25,8 @@ model Schedule {
   title     String
   userId    String
   user      User         @relation(fields: [userId], references: [id])
+  remindersEnabled Boolean     @default(false) 
+  startDate        DateTime?
   planItems PlanItem[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt

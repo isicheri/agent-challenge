@@ -144,27 +144,40 @@ export default function StudyPlannerApp() {
     } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   }
 
-  async function toggleReminders(scheduleId: string, enable: boolean) {
-    if (!email) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch("/api/reminders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scheduleId,
-          enable,
-          to: email,
-          subject: enable ? "Study Reminder" : "Reminders Disabled",
-          message: enable ? "Time to study!" : "Reminders have been disabled."
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to toggle reminders");
-      await fetchUserSchedules();
-    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+async function toggleReminders(scheduleId: string, enable: boolean) {
+  if (!email) return;
+  setError(null);
+  setLoading(true);
+  
+  try {
+    // If enabling, ask user for start date
+    let startDate = new Date().toISOString();
+    if (enable) {
+      // You can add a date picker here, or default to today
+      startDate = new Date().toISOString();
+    }
+
+    const res = await fetch("/api/reminders/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scheduleId,
+        userId: userId, // Make sure you have userId
+        toggleInput: enable,
+        startDate: enable ? startDate : null
+      })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to toggle reminders");
+    
+    await fetchUserSchedules();
+  } catch (err: any) { 
+    setError(err.message); 
+  } finally { 
+    setLoading(false); 
   }
+}
 
 
   // TODO: make this functional

@@ -1,4 +1,93 @@
-import { createTool } from "@mastra/core";
+This is the database schema: 
+   model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  username  String
+  schedules Schedule[]
+}
+
+model Schedule {
+  id        String       @id @default(uuid())
+  title     String
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  planItems PlanItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model PlanItem {
+  id         String      @id @default(uuid())
+  scheduleId String
+  schedule   Schedule    @relation(fields: [scheduleId], references: [id])
+  range      String      // e.g., "Day 1(10am - 3pm)"
+  topic      String      // e.g., "Introduction to Organic Chemistry"
+  subtopics  Subtopic[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Subtopic {
+  id        String   @id @default(uuid())
+  planItemId String
+  planItem   PlanItem @relation(fields: [planItemId], references: [id])
+  title     String    // t in your JSON
+  completed Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+So as you can see the user can have mutiple schedules with different planItem so i want to you to take note of the range topic and the subtopics,only one schedule can have it reminder on per user you can not have more than one schedule on,you can turn it off and on another but you can have two or more simultaneously on.
+
+this is the toggle function for it: 
+  async function toggleReminders(scheduleId: string, enable: boolean) {
+    if (!email) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduleId,
+          enable,
+          to: email,
+          subject: enable ? "Study Reminder" : "Reminders Disabled",
+          message: enable ? "Time to study!" : "Reminders have been disabled."
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to toggle reminders");
+      await fetchUserSchedules();
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  }
+
+
+this is the api we want to use the cron job:import { NextResponse } from "next/server";
+import { studyPlannerAgent } from "@/mastra/agents";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const {  } = body ?? {};
+
+
+    // Use the agent to send reminder
+     await studyPlannerAgent.generateVNext([
+      {
+        role: "user",
+        content: ``
+      }
+    ]);
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+
+this is the tool: import { createTool } from "@mastra/core";
 import { mistral } from "@ai-sdk/mistral";
 import { generateText } from "ai";
 import { getJson } from "serpapi";
