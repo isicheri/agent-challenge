@@ -1,8 +1,6 @@
 import { MCPServer } from "@mastra/mcp"
-import { summarizeContentTool } from "./tools/summarizeTool.js";
-import { generateFlashcardsTool } from "./tools/flashcardTool.js";
-import { chatWithResourceTool } from "./tools/chatWithResourcesTool.js";
-import { flashcardAgent, textSummarizeAgent } from "./agents/index.js";
+import { studyPlannerTool } from "./tools/studyPlannerTool.js";
+import { studyReminderTool } from "./tools/reminderTool.js";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
@@ -11,8 +9,7 @@ dotenv.config();
 export const server = new MCPServer({
   name: "Study Assistant MCP Server",
   version: "1.0.0",
-  tools: { summarizeContentTool,generateFlashcardsTool,chatWithResourceTool },
-  agents: { flashcardAgent,textSummarizeAgent },
+  tools: { studyPlannerTool,studyReminderTool },
 });
 
 
@@ -65,10 +62,8 @@ export async function startHttpServer(port: number = 4112) {
   httpServer.listen(port, () => {
     console.log(`🚀 MCP server running on ${baseUrl}/mcp`);
     console.log(`📊 Health check available at ${baseUrl}/health`);
-    console.log(`🔧 Available tools: summarizeContentTool`);
-    console.log(`🔧 Available tools: chatWithResourceTool`);
-    console.log(`🤖 Available agents: textSummarizeAgent`);
-    console.log(`🤖 Available agents: flashCardAgent`);
+    console.log(`🔧 Available tools: studyPlannerTool`);
+    console.log(`🔧 Available tools: studyReminderTool`);
   });
 
   // Graceful shutdown

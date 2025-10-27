@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  username  String
+  schedules Schedule[]
+}
+
+model Schedule {
+  id        String       @id @default(uuid())
+  title     String
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  remindersEnabled Boolean     @default(false) 
+  startDate        DateTime?
+  planItems PlanItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model PlanItem {
+  id         String      @id @default(uuid())
+  scheduleId String
+  schedule   Schedule    @relation(fields: [scheduleId], references: [id])
+  range      String      // e.g., "Day 1"
+  topic      String      // e.g., "Introduction to Organic Chemistry"
+  subtopics  Subtopic[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Subtopic {
+  id        String   @id @default(uuid())
+  planItemId String
+  planItem   PlanItem @relation(fields: [planItemId], references: [id])
+  title     String    // t in your JSON
+  completed Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}

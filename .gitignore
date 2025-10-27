@@ -103,3 +103,4 @@ bun.lockb
 /app/api/copilotkit/*.js
 /mastra/**/*.js
 /mcp-server/**/*.js
+/src/generated/prisma

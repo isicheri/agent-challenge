@@ -1,381 +1,430 @@
 "use client";
+import { useState, useEffect } from "react";
 
-import { useCoAgent, useCopilotAction } from "@copilotkit/react-core";
-import { CopilotKitCSSProperties, CopilotSidebar } from "@copilotkit/react-ui";
-import { useState } from "react";
-import { AgentState as AgentStateSchema } from "@/mastra/agents";
-import { z } from "zod";
 
-type AgentState = z.infer<typeof AgentStateSchema>;
+type Subtopic = { id: string; title: string; completed: boolean };
+type PlanItem = { id: string; range: string; topic: string; subtopics: Subtopic[] };
+type ScheduleType = { id: string; title: string; remindersEnabled: boolean;
+startDate: string | null; 
+  createdAt: string; planItems: PlanItem[] };
 
-export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#10b981");
+export default function StudyPlannerApp() {
 
-  // 🪁 Frontend Actions: https://docs.copilotkit.ai/guides/frontend-actions
-  useCopilotAction({
-    name: "setThemeColor",
-    parameters: [{
-      name: "themeColor",
-      description: "The theme color to set. Make sure to pick nice colors.",
-      required: true,
-    }],
-    handler({ themeColor }) {
-      setThemeColor(themeColor);
-    },
-  });
+  const [currentStep, setCurrentStep] = useState<"onboarding" | "dashboard">("onboarding");
+  const [authMode, setAuthMode] = useState<"login" | "signup">("signup");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
 
-  return (
-    <main style={{ "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties}>
-      <StudyAssistantContent themeColor={themeColor} />
-      <CopilotSidebar
-        clickOutsideToClose={false}
-        defaultOpen={true}
-        labels={{
-          title: "Study Assistant",
-          initial: "👋 Hi! I'm your AI study assistant. I can help you learn better by:\n\n📚 **Summarizing content** - Paste any text and I'll summarize it in your preferred style\n🎯 **Creating flashcards** - Turn summaries into study flashcards\n💬 **Answering questions** - Ask me anything about your study materials\n\nTry saying:\n- \"Summarize this text: [paste your content]\"\n- \"Create flashcards from this summary\"\n- \"What does this concept mean?\"\n\nI'll remember your preferences and adapt to your learning style!"
-        }}
-      />
-    </main>
-  );
+  const [topicInput, setTopicInput] = useState("");
+  const [durationUnit, setDurationUnit] = useState<"days" | "weeks" | "months">("weeks");
+  const [durationValue, setDurationValue] = useState<number>(1);
+
+  const [generatedPlan, setGeneratedPlan] = useState<PlanItem[] | null>(null);
+  const [createdSchedule, setCreatedSchedule] = useState<any | null>(null);
+  const [userSchedules, setUserSchedules] = useState<ScheduleType[]>([]);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+    const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+
+   
+
+    const toggleExpand = (id: string) => {
+    setExpandedSchedules((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+
+  /* ------------------- Auth ------------------- */
+  async function createUser(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, username }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create user");
+      setUserId(data.user.id);
+      setCurrentStep("dashboard");
+      localStorage.setItem("userId", data.user.id);
+      localStorage.setItem("email", email);
+      localStorage.setItem("username", username);
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  }
+
+  async function loginUser(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, username }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      setUserId(data.user.id);
+      setUsername(data.user.username);
+      setEmail(data.user.email);
+      setCurrentStep("dashboard");
+      localStorage.setItem("userId", data.user.id);
+      localStorage.setItem("email", data.user.email);
+      localStorage.setItem("username", data.user.username);
+      await fetchUserSchedules();
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  }
+
+  /* ------------------- Schedule ------------------- */
+  async function generatePlan(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId) { setError("Create a user first"); return; }
+    setError(null);
+    setLoading(true);
+    setGeneratedPlan(null);
+    try {
+      const res = await fetch("/api/schedules/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: topicInput, durationUnit, durationValue })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.plan) throw new Error(data.error || "Failed to generate plan");
+      setGeneratedPlan(data.plan);
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  }
+
+  async function saveGeneratedPlan() {
+    if (!userId || !generatedPlan) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, title: `${topicInput} Plan`, plan: generatedPlan })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save schedule");
+      setCreatedSchedule(data.schedule);
+      setGeneratedPlan(null);
+      setTopicInput("");
+      setDurationValue(1);
+      await fetchUserSchedules();
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  }
+
+  async function fetchUserSchedules() {
+  if (!email || !username) return;
+
+  try {
+    const res = await fetch("/api/schedules/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, username }), // <-- send these
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to fetch schedules");
+    setUserSchedules(data.schedules || []);
+  } catch (err: any) {
+    setError(err.message);
+  }
 }
 
-function StudyAssistantContent({ themeColor }: { themeColor: string }) {
-  // 🪁 Shared State: https://docs.copilotkit.ai/coagents/shared-state
+  async function deleteUserSchedule(scheduleId: string) {
+    if (!userId || !scheduleId) return;
+    try {
+      setLoading(true);
+      const res = await fetch("/api/schedules/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, scheduleId }),
+      });
+      if (!res.ok) throw new Error("Failed to delete schedule");
+      await fetchUserSchedules();
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  }
 
+async function toggleReminders(scheduleId: string, enable: boolean) {
+  if (!email) return;
+  setError(null);
+  setLoading(true);
   
-  const { state } = useCoAgent<AgentState>({
-    name: "studyAssistantAgent",
-    initialState: {
-      userName: "",
-      userPreferences: {
-        preferredSummaryStyle: "detailed",
-        preferredFlashcardStyle: "general",
-        learningLevel: "intermediate",
-      },
-      currentSession: {
-        topics: [],
-        sessionStartTime: new Date().toISOString(),
-      },
-      studyHistory: [],
-      currentResources: [],
-    },
+  try {
+    // If enabling, ask user for start date
+    let startDate = new Date().toISOString();
+    if (enable) {
+      // You can add a date picker here, or default to today
+      startDate = new Date().toISOString();
+    }
+
+    const res = await fetch("/api/reminders/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scheduleId,
+        userId: userId, // Make sure you have userId
+        toggleInput: enable,
+        startDate: enable ? startDate : null
+      })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to toggle reminders");
+    
+    await fetchUserSchedules();
+  } catch (err: any) { 
+    setError(err.message); 
+  } finally { 
+    setLoading(false); 
+  }
+}
+
+
+  // TODO: make this functional
+  // async function viewScheduleDetails(userId: string,username: string,scheduleId: string) {}
+
+  async function toggleSubtopicCompleted(scheduleId: string, range: string, subIdx: number, completed: boolean) {
+  if (!userId) return;
+  setLoading(true);
+  setError(null);
+
+  try {
+    const res = await fetch("/api/subtopic/update", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduleId, range, subIdx, completed })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to update subtopic");
+
+    // Update local state so progress bar updates instantly
+  setUserSchedules(prev =>
+  prev.map(s => {
+    if (s.id !== scheduleId) return s;
+    return {
+      ...s,
+      planItems: s.planItems.map(item => {
+        if (item.range !== range) return item;
+        return {
+          ...item,
+          subtopics: item.subtopics.map((sub, idx) =>
+            idx === subIdx ? { ...sub, completed } : sub
+          ),
+        };
+      }),
+    };
   })
+);
 
-  //🪁 Generative UI: https://docs.copilotkit.ai/coagents/generative-ui
-  useCopilotAction({
-    name: "summarizeContentTool",
-    description: "Summarize study content with different styles.",
-    available: "frontend",
-    parameters: [
-      { name: "content", type: "string", required: true },
-      { name: "style", type: "string", required: false },
-    ],
-    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
-      return <SummaryCard
-        content={args.content}
-        style={args.style}
-        themeColor={themeColor}
-        result={result}
-        status={status}
-      />
-    },
-  });
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}
 
-  useCopilotAction({
-    name: "generateFlashcardsTool",
-    description: "Generate flashcards from study content.",
-    available: "frontend",
-    parameters: [
-      { name: "content", type: "string", required: true },
-      { name: "style", type: "string", required: false },
-    ],
-    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
-      return <FlashcardCard
-        content={args.content}
-        style={args.style}
-        themeColor={themeColor}
-        result={result}
-        status={status}
-      />
-    },
-  });
+  function logout() {
+    localStorage.clear();
+    setUserId(null);
+    setEmail("");
+    setUsername("");
+    setCurrentStep("onboarding");
+    setUserSchedules([]);
+    setCreatedSchedule(null);
+    setGeneratedPlan(null);
+  }
 
-  useCopilotAction({
-    name: "chatWithResourceTool",
-    description: "Answer questions about study materials.",
-    available: "frontend",
-    parameters: [
-      { name: "question", type: "string", required: true },
-      { name: "messages", type: "object[]", required: false },
-      { name: "resources", type: "object[]", required: false },
-    ],
-    render: ({ args, result, status }: { args: any, result: any, status: "inProgress" | "executing" | "complete" }) => {
-      return <AnswerCard
-        question={args.question}
-        themeColor={themeColor}
-        result={result}
-        status={status}
-      />
-    },
-  });
+  useEffect(() => {
+    const savedUserId = localStorage.getItem("userId");
+    const savedEmail = localStorage.getItem("email");
+    const savedUsername = localStorage.getItem("username");
+    if (savedUserId && savedEmail && savedUsername) {
+      setUserId(savedUserId);
+      setEmail(savedEmail);
+      setUsername(savedUsername);
+      setCurrentStep("dashboard");
+    }
+  }, []);
 
-  useCopilotAction({
-    name: "updateWorkingMemory",
-    available: "frontend",
-    render: ({ args }) => {
-      return <div style={{ backgroundColor: themeColor }} className="rounded-2xl max-w-md w-full text-white p-4">
-        <p>✨ Memory updated</p>
-        <details className="mt-2">
-          <summary className="cursor-pointer text-white">See updates</summary>
-          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} className="overflow-x-auto text-sm bg-white/20 p-4 rounded-lg mt-2">
-            {JSON.stringify(args, null, 2)}
-          </pre>
-        </details>
-      </div>
-    },
-  });
+  useEffect(() => { if (userId) fetchUserSchedules(); }, [userId]);
+
+  /* ------------------- Render ------------------- */
+  if (currentStep === "onboarding") {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Study Planner</h1>
+            <p className="text-gray-600">Create your personalized study schedule</p>
+          </div>
+
+          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+            <button type="button" onClick={() => setAuthMode("signup")} className={`flex-1 py-2 px-4 rounded-md text-sm font-medium ${authMode==="signup"?"bg-white text-orange-600 shadow-sm":"text-gray-600 hover:text-gray-900"}`}>Sign Up</button>
+            <button type="button" onClick={() => setAuthMode("login")} className={`flex-1 py-2 px-4 rounded-md text-sm font-medium ${authMode==="login"?"bg-white text-orange-600 shadow-sm":"text-gray-600 hover:text-gray-900"}`}>Login</button>
+          </div>
+
+          {error && <div className="mb-4 p-3 rounded bg-red-100 text-red-800 text-sm">{error}</div>}
+
+          <form onSubmit={authMode==="signup"?createUser:loginUser} className="space-y-4">
+            <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black" type="text" placeholder="Username" value={username} onChange={e=>setUsername(e.target.value)} required />
+            <button className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg" disabled={loading} type="submit">{loading? "Processing...": authMode==="signup"? "Get Started":"Login"}</button>
+          </form>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="h-screen w-screen flex justify-center items-center flex-col transition-colors duration-300"
-    >
-      <div className="bg-white/20 backdrop-blur-md p-8 rounded-2xl shadow-xl max-w-4xl w-full">
-        <h1 className="text-4xl font-bold text-white mb-2 text-center">Study Assistant</h1>
-        <p className="text-gray-200 text-center italic mb-6">Your AI-powered learning companion 📚</p>
-        
-        {/* User Info */}
-        <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-          <h3 className="text-lg font-semibold mb-2">👤 Your Profile</h3>
-          {state.userName ? (
-            <p>Welcome back, <strong>{state.userName}</strong>!</p>
+    <main className="min-h-screen bg-gray-100">
+      <div className="bg-orange-600 text-white py-4 px-6 flex justify-between max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold">Study Planner Dashboard</h1>
+        <div className="flex items-center gap-4">
+          <span className="text-sm">Welcome, <b>{username}</b></span>
+          <button onClick={logout} className="px-3 py-1 bg-white/20 rounded-lg">Logout</button>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        {/* Create & Preview Schedule */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-semibold mb-4 text-black">Create Study Plan</h2>
+          <form onSubmit={generatePlan} className="space-y-4">
+            <input type="text" placeholder="Topic" value={topicInput} onChange={e=>setTopicInput(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black" required />
+            <div className="flex gap-2">
+              <input type="number" min={1} value={durationValue} onChange={e=>setDurationValue(Number(e.target.value))} className="border border-gray-300 rounded-lg px-2 py-1 w-20 text-black" required />
+              <select value={durationUnit} onChange={e=>setDurationUnit(e.target.value as any)} className="border border-gray-300 rounded-lg px-2 py-1 text-black">
+                <option value="days">Days</option>
+                <option value="weeks">Weeks</option>
+                <option value="months">Months</option>
+              </select>
+            </div>
+            <button type="submit" className="w-full bg-orange-600 text-white py-2 rounded-lg" disabled={loading}>{loading?"Generating...":"Generate Plan"}</button>
+          </form>
+
+          {generatedPlan && (
+            <div className="mt-6 border p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-semibold mb-2 text-black">📄 Preview Plan</h3>
+              <pre className="text-xs overflow-x-auto text-black">{JSON.stringify(generatedPlan, null, 2)}</pre>
+              <button onClick={saveGeneratedPlan} className="mt-3 w-full bg-green-600 text-white py-2 rounded-lg" disabled={loading}>{loading?"Saving...":"Save Schedule"}</button>
+            </div>
+          )}
+
+          {createdSchedule && (
+            <div className="mt-6 border p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-semibold mb-2">✅ Schedule Created!</h3>
+              <pre className="text-xs overflow-x-auto">{JSON.stringify(createdSchedule, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+
+        {/* User Schedules */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">My Schedules</h2>
+          {userSchedules.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No schedules yet. Create your first plan!</div>
           ) : (
-            <p>Tell me your name to personalize your experience</p>
+            <div className="space-y-4">
+ {userSchedules.map((s) => {
+  const isExpanded = expandedSchedules.has(s.id);
+
+  // Calculate overall progress
+  const totalSubtopics = s.planItems?.reduce((acc, item) => acc + (item.subtopics?.length ?? 0), 0) ?? 0;
+  const completedSubtopics = s.planItems?.reduce(
+    (acc, item) => acc + (item.subtopics?.filter((sub) => sub.completed).length ?? 0),
+    0
+  ) ?? 0;
+  const scheduleProgress = totalSubtopics ? (completedSubtopics / totalSubtopics) * 100 : 0;
+
+  return (
+    <div key={s.id} className="border p-4 rounded bg-gray-50">
+      <div className="flex justify-between mb-2 items-center">
+        <div onClick={() => toggleExpand(s.id)} className="cursor-pointer">
+          <div className="text-sm text-gray-600">
+            Created: {new Date(s.createdAt).toLocaleDateString()}
+          </div>
+          <div className="font-bold text-black">{s.title.toUpperCase()}</div>
+          {/* Schedule-level progress */}
+          <div className="mt-1 h-3 w-full bg-gray-200 rounded relative">
+            <div
+              className="h-3 bg-blue-500 rounded"
+              style={{ width: `${scheduleProgress}%` }}
+            ></div>
+            <span className="absolute right-2 top-0 text-xs text-black">{`${Math.round(scheduleProgress)}%`}</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+   <button
+  onClick={() => toggleReminders(s.id, !s.remindersEnabled)}
+  className={`px-3 py-1 rounded text-sm ${
+    s.remindersEnabled 
+      ? 'bg-red-100! text-red-700!' 
+      : 'bg-green-100 text-green-700!'
+  }`}
+>
+  {s.remindersEnabled ? '🔔 Reminders ON' : '🔕 Enable Reminders'}
+</button>
+          <button
+            onClick={() => deleteUserSchedule(s.id)}
+            className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="space-y-4 mt-2">
+       {s.planItems?.map((item) => (
+  <div key={item.id} className="border p-2 rounded bg-gray-50">
+    <div className="font-semibold mb-1 text-black">{item.topic}</div>
+
+    {item.subtopics?.map((sub, idx) => (
+      <label key={sub.id} className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={sub.completed}
+          onChange={() =>
+            toggleSubtopicCompleted(s.id, item.range, idx, !sub.completed)
+          }
+        />
+        <span className={sub.completed ? "line-through text-gray-400" : "text-black"}>
+          {sub.title} <span className="text-xs text-gray-500">({item.range})</span>
+        </span>
+      </label>
+    ))}
+
+    {/* PlanItem progress bar */}
+    <div className="h-2 w-full bg-gray-200 rounded mt-2">
+      <div
+        className="h-2 bg-green-500 rounded"
+        style={{
+          width: `${
+            (item.subtopics?.filter((s) => s.completed).length ?? 0) /
+            (item.subtopics?.length ?? 1) *
+            100
+          }%`,
+        }}
+      ></div>
+    </div>
+  </div>
+))}
+
+        </div>
+      )}
+    </div>
+  );
+})}
+
+            </div>
           )}
-          {state.userPreferences?.learningLevel && (
-            <p className="text-sm opacity-80">Learning Level: {state.userPreferences.learningLevel}</p>
-          )}
         </div>
 
-        {/* Current Session */}
-        {state.currentSession?.topics && state.currentSession.topics.length > 0 && (
-          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-            <h3 className="text-lg font-semibold mb-2">📖 Current Session</h3>
-            <div className="flex flex-wrap gap-2">
-              {state.currentSession.topics.map((topic, index) => (
-                <span key={index} className="bg-white/20 px-3 py-1 rounded-full text-sm">
-                  {topic}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Study History */}
-        {state.studyHistory && state.studyHistory.length > 0 && (
-          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-            <h3 className="text-lg font-semibold mb-2">📊 Study History</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {state.studyHistory.slice(0, 4).map((item, index) => (
-                <div key={index} className="bg-white/10 p-2 rounded text-sm">
-                  <div className="font-medium">{item.topic}</div>
-                  <div className="text-xs opacity-80">
-                    {item.summaryCount} summaries, {item.flashcardCount} flashcards
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Resources */}
-        {state.currentResources && state.currentResources.length > 0 && (
-          <div className="bg-white/15 p-4 rounded-xl text-white mb-6">
-            <h3 className="text-lg font-semibold mb-2">📄 Current Resources</h3>
-            <div className="space-y-2">
-              {state.currentResources.map((resource, index) => (
-                <div key={index} className="bg-white/10 p-2 rounded text-sm">
-                  <div className="font-medium">{resource.name}</div>
-                  <div className="text-xs opacity-80">
-                    {resource.content.length > 100 
-                      ? `${resource.content.substring(0, 100)}...` 
-                      : resource.content}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="text-center text-white/80 italic">
-          <p>💡 Try asking me to:</p>
-          <p className="text-sm mt-2">
-            "Summarize this text: [paste your content]"<br/>
-            "Create flashcards from this summary"<br/>
-            "What does this concept mean?"
-          </p>
-        </div>
       </div>
-    </div>
-  );
-}
-
-// Summary card component for displaying summarized content
-function SummaryCard({
-  content,
-  style,
-  themeColor,
-  result,
-  status
-}: {
-  content?: string,
-  style?: string,
-  themeColor: string,
-  result: any,
-  status: "inProgress" | "executing" | "complete"
-}) {
-  if (status !== "complete") {
-    return (
-      <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-        style={{ backgroundColor: themeColor }}
-      >
-        <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">📚 Summarizing content...</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold text-white">📚 Summary</h3>
-          <span className="text-sm text-white/80 bg-white/20 px-2 py-1 rounded">
-            {style || "detailed"}
-          </span>
-        </div>
-        
-        <div className="text-white whitespace-pre-wrap">
-          {result?.summary || "Summary not available"}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Flashcard card component for displaying generated flashcards
-function FlashcardCard({
-  content,
-  style,
-  themeColor,
-  result,
-  status
-}: {
-  content?: string,
-  style?: string,
-  themeColor: string,
-  result: any,
-  status: "inProgress" | "executing" | "complete"
-}) {
-  if (status !== "complete") {
-    return (
-      <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-        style={{ backgroundColor: themeColor }}
-      >
-        <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">🎯 Generating flashcards...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const flashcards = result?.flashcards || [];
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold text-white">🎯 Flashcards</h3>
-          <span className="text-sm text-white/80 bg-white/20 px-2 py-1 rounded">
-            {style || "general"}
-          </span>
-        </div>
-        
-        <div className="space-y-3">
-          {flashcards.map((card: any, index: number) => (
-            <div key={index} className="bg-white/10 p-3 rounded-lg">
-              <div className="text-white">
-                <div className="font-semibold mb-2">Q: {card.question}</div>
-                <div className="text-sm opacity-90">A: {card.answer}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Answer card component for displaying Q&A responses
-function AnswerCard({
-  question,
-  themeColor,
-  result,
-  status
-}: {
-  question?: string,
-  themeColor: string,
-  result: any,
-  status: "inProgress" | "executing" | "complete"
-}) {
-  if (status !== "complete") {
-    return (
-      <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-        style={{ backgroundColor: themeColor }}
-      >
-        <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">💬 Thinking about your question...</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-2xl w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold text-white">💬 Answer</h3>
-        </div>
-        
-        <div className="text-white mb-3">
-          <div className="font-semibold">Q: {question}</div>
-        </div>
-        
-        <div className="text-white whitespace-pre-wrap">
-          {result?.answer || "Answer not available"}
-        </div>
-        
-        {result?.usedResources && result.usedResources.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-white/20">
-            <div className="text-sm text-white/80">
-              📄 Used resources: {result.usedResources.join(", ")}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    </main>
   );
 }
