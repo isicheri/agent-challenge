@@ -20,8 +20,8 @@ const darkerGrotesque = Darker_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "Nosana Mastra Agent Kit",
-  description: "An example of using CopilotKit with Mastra agents.",
+  title: "Coplana",
+  description: "An AI-Powered Study Schedule Generator.",
 };
 
 export default function RootLayout({
