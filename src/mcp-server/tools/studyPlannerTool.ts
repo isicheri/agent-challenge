@@ -2,7 +2,7 @@ import { createTool } from "@mastra/core";
 import { generateText } from "ai";
 import { mistral } from "@ai-sdk/mistral";
 import z from "zod";
-const model = mistral("mistral-small-latest");
+const model = mistral("mistral-medium-latest");
 
 const studyPlannerOutputSchema = z.object({
   plan: z.array(
@@ -322,19 +322,31 @@ export const studyPlannerTool = createTool({
           model,
           prompt,
           maxOutputTokens: 2000,
-          temperature: 0.5 + (attempt - 1) * 0.1, // Slightly increase temp on retries
+          temperature: 0.2 + (attempt - 1) * 0.1,
         });
 
         console.log("Raw AI output:", aiResult.text);
         
         // Clean the output
-        let cleaned = aiResult.text.trim();
-        cleaned = cleaned.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-        cleaned = cleaned.trim();
-        cleaned = cleaned.replace(/[\u0000-\u001F]+/g, " ");
-        cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
-        
-        console.log("Cleaned output:", cleaned);
+let cleaned = aiResult.text.trim();
+cleaned = cleaned.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+cleaned = cleaned.trim();
+
+// 🔥 ADD THESE LINES - Fix problematic characters before parsing
+// Remove or replace mathematical symbols that might break JSON
+cleaned = cleaned.replace(/∪/g, 'U');
+cleaned = cleaned.replace(/∩/g, 'n');
+cleaned = cleaned.replace(/×/g, 'x');
+cleaned = cleaned.replace(/Δ/g, 'Delta');
+
+// Fix unescaped backslashes (like in "A \ B")
+// This regex finds backslashes that aren't already part of valid escape sequences
+cleaned = cleaned.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+
+cleaned = cleaned.replace(/[\u0000-\u001F]+/g, " ");
+cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
+
+console.log("Cleaned output:", cleaned);
 
         let parsed: unknown;
         try {

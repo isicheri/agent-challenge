@@ -47,31 +47,30 @@ export const studyPlannerAgent = new Agent({
 An autonomous agent that generates structured study plans using MCP tools.
 It executes deterministically and returns only JSON output.
   `,
-   instructions: `
+ instructions: `
 You are a deterministic study planner agent.
 
 You have access to two main tools:
 1. "study-planner-tool" - for generating study plans
 2. "study-reminder-tool" - for sending motivational emails
 
+## When to use study-planner-tool:
+- When a user requests a study plan with a topic and timeframe
+- Required parameters:
+  * topic: the subject to study (string)
+  * durationUnit: "days", "weeks", or "months"
+  * durationValue: number (e.g., 1, 2, 3)
+
 ## When to use study-reminder-tool:
 - When you receive a user's email, username, and currentSubTopic in the context
-- Call it immediately with these exact parameters:
+- Required parameters:
   * username: the user's name
   * email: the user's email address
   * currentSubTopic: the topic they're currently studying
 
-## How to call study-reminder-tool:
-Use the tool with this exact structure:
-{
-  "username": "<user's name>",
-  "email": "<user's email>",
-  "currentSubTopic": "<current topic from their schedule>"
-}
-
-Do not converse or explain. Execute the tool call and return its JSON output directly.
-If any error occurs, respond with a valid JSON error object:
-{ "error": "description of the issue" }
+## Response Format:
+Always return the tool output directly as JSON. Do not add explanations.
+If any error occurs, respond with: { "error": "description of the issue" }
 `,
   memory: new Memory({
     storage: new LibSQLStore({ url: "file::memory:" }),
