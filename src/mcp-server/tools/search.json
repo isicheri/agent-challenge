@@ -632,3 +632,88 @@
 "https://serpapi.com/search.json?engine=duckduckgo&kl=us-en&q=best+resource+to+find+Basic+concepts+and+scope+of+organic+chemistry&start=20"
 }
 }
+
+// const generatePrompt = (topic: string, durationUnit: string, durationValue: number) => {
+//   const breakdownMap = {
+//     days: "hours",
+//     weeks: "days",
+//     months: "weeks",
+//   };
+//   const breakdown = breakdownMap[durationUnit as keyof typeof breakdownMap];
+
+//   return `
+// You are an expert study planner and subject matter specialist with deep knowledge of effective learning pace.
+// Create a structured, step-by-step study plan that helps a student master the topic "${topic}" within ${durationValue} ${durationUnit}.
+
+// Requirements:
+// 1. Break the total study duration into smaller ${breakdown} intervals, progressing logically from fundamentals to advanced understanding.
+
+// 2. TIME RANGE CALCULATION - VERY IMPORTANT:
+//    - Each subtopic requires approximately 25-40 minutes of focused study
+//    - Calculate session duration based on number of subtopics: 
+//      * 3 subtopics = 1.5-2 hours
+//      * 4 subtopics = 2-3 hours  
+//      * 5 subtopics = 2.5-3.5 hours
+//      * 6 subtopics = 3-4 hours
+//    - Format: "Day X: HH:MMam/pm - HH:MMam/pm" (e.g., "Day 1: 10:00am - 1:00pm")
+//    - Typical study sessions: morning (9am-12pm or 10am-1pm), afternoon (2pm-5pm or 2pm-6pm)
+//    - Allow at least 1 hour break between sessions
+
+// 3. For each interval, include:
+//    - "range": Calculated realistic study period based on subtopic count
+//    - "topic": Specific focused aspect of ${topic} (NOT just "${topic}")
+//    - "subtopics": An array of 3-6 concrete, actionable subtopics
+//        • "t": the name of the subtopic (string)
+//        • "completed": boolean, always false
+
+// 4. TOPIC NAMING:
+//    - Each topic should be a SPECIFIC area, not generic
+//    - Example: Instead of "calculus", use "Limits and Continuity", "Derivative Techniques", "Integration Methods"
+
+// IMPORTANT:
+// - Return **pure JSON only** — no markdown, no explanations, no comments
+// - Do not wrap JSON in code fences
+// - Calculate time ranges realistically based on subtopic complexity and count
+// - Distribute sessions logically across ${durationValue} ${durationUnit}
+// - Ensure topics are specific and diverse
+
+// EXAMPLE (showing proper time calculation):
+
+// [
+//   {
+//     "range": "Day 1: 10:00am - 1:00pm",
+//     "topic": "Foundations of Limits and Continuity",
+//     "subtopics": [
+//       { "t": "Understanding limits through graphs and tables", "completed": false },
+//       { "t": "One-sided limits and limit laws", "completed": false },
+//       { "t": "Continuity and types of discontinuities", "completed": false },
+//       { "t": "Limits at infinity", "completed": false }
+//     ]
+//   },
+//   {
+//     "range": "Day 1: 2:00pm - 4:30pm",
+//     "topic": "Introduction to Derivatives",
+//     "subtopics": [
+//       { "t": "Definition of derivative using limits", "completed": false },
+//       { "t": "Geometric interpretation of derivatives", "completed": false },
+//       { "t": "Basic differentiation rules", "completed": false }
+//     ]
+//   },
+//   {
+//     "range": "Day 2: 10:00am - 1:30pm",
+//     "topic": "Advanced Differentiation Techniques",
+//     "subtopics": [
+//       { "t": "Product rule and quotient rule", "completed": false },
+//       { "t": "Chain rule and its applications", "completed": false },
+//       { "t": "Implicit differentiation", "completed": false },
+//       { "t": "Higher order derivatives", "completed": false },
+//       { "t": "Practice complex differentiation problems", "completed": false }
+//     ]
+//   }
+// ]
+
+// Note: First session has 4 subtopics = 3 hours. Second has 3 subtopics = 2.5 hours. Third has 5 subtopics = 3.5 hours.
+
+// Now generate the complete study plan for "${topic}" over ${durationValue} ${durationUnit}:
+//   `;
+// };
