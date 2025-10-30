@@ -37,7 +37,7 @@ export default function CoplanaLanding() {
             BIG TOPICS, LITTLE TIMEFRAME.
           </div>
           <motion.h1
-            className="text-7xl lg:text-8xl font-black leading-[4.5rem] mb-4"
+            className="text-7xl hero-title py-4 lg:text-8xl font-black leading-[4.5rem] mb-4"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -81,10 +81,10 @@ export default function CoplanaLanding() {
 
         {/* Feature Highlights */}
         <div
-          style={{ backgroundImage: "linear-gradient(transparent, white)" }}
-          className="w-full h-[160px] -mt-[160px] "
+          style={{ backgroundImage: "linear-gradient(transparent, #f9f9f9)" }}
+          className="fader-top w-full h-[160px] -mt-[160px] "
         ></div>
-        <section className="px-6 py-16 bg-white">
+        <section className="px-6 py-16 bg-wht">
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-center mb-16">
             Why You'll Love Coplana
           </h2>
@@ -113,13 +113,13 @@ export default function CoplanaLanding() {
                   backgroundImage: `url("/grid.svg")`,
                   backgroundSize: 200,
                 }}
-                className="p-6 border border-wht hover:scale-[1.02] duration-1000 relative bg-blk bg-gradient-to-br from-black to-blk text-white rounded-4xl transition-all"
+                className="featureCard p-6 border border-wht hover:scale-[1.02] duration-1000 relative bg-blk bg-gradient-to-br from-black to-blk text-white rounded-4xl transition-all"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.2 }}
                 viewport={{ once: true }}
               >
-                <div className="w-[120px] h-[120px] bg-blue-500 border-8 border-cyan-300 blur-2xl rounded-full absolute -top-8 -left-8"></div>
+                <div className="glow w-[120px] h-[120px] duration-500 bg-blue-500 border-8 border-cyan-300 blur-2xl rounded-full absolute -top-8 -left-8"></div>
                 <Image
                   src={`/${feature.icon}.svg`}
                   width={45}
@@ -135,6 +135,11 @@ export default function CoplanaLanding() {
             ))}
           </div>
         </section>
+
+        <div
+          style={{ backgroundImage: "linear-gradient(#f9f9f9, transparent)" }}
+          className="fader-bottom w-full h-[160px] -[160px] "
+        ></div>
 
         {/* Coming Soon Section */}
         <div className="w-full p-4 md:p-8">
@@ -161,7 +166,7 @@ export default function CoplanaLanding() {
         </div>
 
         {/* Footer */}
-        <footer className="mt-auto bg-white border-t border-gray-200 py-6 text-center text-sm text-gray-500">
+        <footer className="mt-auto bg-#f9f9f9 border-t border-gray-200 py-6 text-center text-sm text-gray-500">
           © {new Date().getFullYear()} Coplana. Crafted to help YOU study
           smarter.
         </footer>
