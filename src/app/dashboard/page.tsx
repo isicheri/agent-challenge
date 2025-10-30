@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import ScheduleCard from "../components/ScheduleCard";
 
 type Subtopic = { id: string; t: string; title: string; completed: boolean };
 type PlanItem = {
@@ -34,7 +35,12 @@ export default function StudyPlannerApp() {
   const [createdSchedule, setCreatedSchedule] = useState<any | null>(null);
   const [userSchedules, setUserSchedules] = useState<ScheduleType[]>([]);
 
+  // const [generatingSchedule, setGeneratingSchedule] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [deletingSchedule, setDeletingSchedule] = useState(false);
+  const [enablingReminder, setEnablingReminder] = useState(false);
+  const [completingTask, setCompletingTask] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [expanded, setExpanded] = useState<boolean>(false);
@@ -100,7 +106,7 @@ export default function StudyPlannerApp() {
   async function saveGeneratedPlan() {
     if (!userId || !generatedPlan) return;
     setError(null);
-    setLoading(true);
+    setSavingSchedule(true);
     try {
       const res = await fetch("/api/schedules", {
         method: "POST",
@@ -121,7 +127,7 @@ export default function StudyPlannerApp() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setSavingSchedule(false);
     }
   }
 
@@ -145,7 +151,7 @@ export default function StudyPlannerApp() {
   async function deleteUserSchedule(scheduleId: string) {
     if (!userId || !scheduleId) return;
     try {
-      setLoading(true);
+      setDeletingSchedule(true);
       const res = await fetch("/api/schedules/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -156,14 +162,14 @@ export default function StudyPlannerApp() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setDeletingSchedule(false);
     }
   }
 
   async function toggleReminders(scheduleId: string, enable: boolean) {
     if (!email) return;
     setError(null);
-    setLoading(true);
+    setEnablingReminder(true);
 
     try {
       // If enabling, ask user for start date
@@ -191,7 +197,7 @@ export default function StudyPlannerApp() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setEnablingReminder(false);
     }
   }
 
@@ -209,7 +215,7 @@ export default function StudyPlannerApp() {
     completed: boolean
   ) {
     if (!userId) return;
-    setLoading(true);
+    setCompletingTask(true);
     setError(null);
 
     try {
@@ -243,7 +249,7 @@ export default function StudyPlannerApp() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setCompletingTask(false);
     }
   }
 
@@ -279,7 +285,7 @@ export default function StudyPlannerApp() {
     <main className="min-h-screen --font-darker-grotesque bg-gray-100 -bg-[#191919]">
       <div className="header bg-[#18181d] text-white p-4 md:p-6 md:px-8 lg:px-16 flex justify-between max-w- mx-auto">
         <Link href="/">
-          <Image src="/logo.svg" width={120} height={40} alt="" />
+          <Image src="/logo.svg" width={140} height={40} alt="" />
         </Link>
         <div className="flex items-center gap-4">
           <div className="account-panel flex items-center gap-2">
@@ -341,7 +347,7 @@ export default function StudyPlannerApp() {
             </div>
             <button
               type="submit"
-              className="gradient-btn duration-300 hover:brightness-110 hover:shadow-3xl hover:shadow-[#9c9c9c]/20 w-full flex text-lg items-center justify-center gap-2 bg-purple-500 text-white p-3 rounded-full"
+              className="gradient-btn hover:shadow-2xl shadow-2xl hover:shadow-purple-500/30 duration-300 hover:brightness-110 hover:shadow-3xl w-full flex text-lg items-center justify-center gap-2 bg-purple-500 text-white p-3 rounded-full"
               disabled={loading}
             >
               {loading ? "Generating" : "Generate Plan"}
@@ -397,22 +403,30 @@ export default function StudyPlannerApp() {
               </div>
               <button
                 onClick={saveGeneratedPlan}
-                className="mt-3 w-full bg-blk text-white py-2 rounded-2xl cursor-pointer"
-                disabled={loading}
+                className="mt-3 flex items-center gap-2 justify-center w-full bg-blk hover:bg-blk/90 bg-gradient-to-br from-gry/40 duration-200 hover:shadow-xl hover:shadow-blk/20 text-white py-2 rounded-2xl cursor-pointer"
+                disabled={savingSchedule}
               >
-                {loading ? "Saving..." : "Save Schedule"}
+                {savingSchedule ? "Saving..." : "Save Schedule"}
+                <Image
+                  alt=""
+                  src="/loader.svg"
+                  width={20}
+                  height={20}
+                  className="spinner"
+                  hidden={!savingSchedule}
+                />{" "}
               </button>
             </div>
           )}
 
-          {createdSchedule && (
+          {/* {createdSchedule && (
             <div className="mt-6 border p-4 text-gray rounded-lg">
               <h3 className="font-semibold mb-2">✅ Schedule Created!</h3>
               <pre className="text-xs overflow-x-auto">
                 {JSON.stringify(createdSchedule, null, 2)}
               </pre>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* User Schedules */}
@@ -427,201 +441,15 @@ export default function StudyPlannerApp() {
             </div>
           ) : (
             <div className="space-y-4">
-              {userSchedules.map((s) => {
-                const isExpanded = expandedSchedules.has(s.id);
-
-                // Calculate overall progress
-                const totalSubtopics =
-                  s.planItems?.reduce(
-                    (acc, item) => acc + (item.subtopics?.length ?? 0),
-                    0
-                  ) ?? 0;
-                const completedSubtopics =
-                  s.planItems?.reduce(
-                    (acc, item) =>
-                      acc +
-                      (item.subtopics?.filter((sub) => sub.completed).length ??
-                        0),
-                    0
-                  ) ?? 0;
-                const scheduleProgress = totalSubtopics
-                  ? (completedSubtopics / totalSubtopics) * 100
-                  : 0;
-
-                return (
-                  <div key={s.id} className=" p-4 rounded-xl bg-gry/8">
-                    <div className="flex justify-between mb-2 items-center">
-                      <div className="">
-                        <div
-                          onClick={() => toggleExpand(s.id)}
-                          className="head(title-and-dropdown) cursor-pointer font-bold flex items-center gap-2 text-xl capitalize text-black pb-2"
-                        >
-                          <Image
-                            src="/arrow-down.svg"
-                            className={`${
-                              expanded ? "-scale-y-100" : "scale-y-100"
-                            }`}
-                            alt=""
-                            width={30}
-                            height={30}
-                          />{" "}
-                          {s.title}
-                          <div className="p-1 text-sm px-3 rounded-full bg-gry/15 text-gray">
-                            {s.planItems.length} STAGE
-                            {s.planItems.length > 1 ? "S" : ""}
-                          </div>
-                        </div>
-                        {/* Schedule-level progress */}
-                        <div className="meter-bar p-1 mt-1 h-max w-full bg-gry/15 bg-gradient-to-br from-gry/15  rounded-full relative">
-                          <div
-                            className="meter h-4 bg-green-500 duration-500 ease-out rounded-full"
-                            style={{ width: `${scheduleProgress}%` }}
-                          ></div>
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray">{`${Math.round(
-                            scheduleProgress
-                          )}%`}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() =>
-                            toggleReminders(s.id, !s.remindersEnabled)
-                          }
-                          className={`p-3 notf-btn rounded-full cursor-pointer text-sm ${
-                            s.remindersEnabled
-                              ? "bg-green-500"
-                              : "bg-gry/15 hover:bg-gry/30 text-gray"
-                          } active:scale-90 duration-200`}
-                        >
-                          {s.remindersEnabled ? (
-                            <div className="notf-btn flex items-center ">
-                              <Image
-                                alt=""
-                                width={20}
-                                height={20}
-                                src="/bell-fill.svg"
-                              />
-                              <div className="label duration-500 whitespace-nowrap ">
-                                Reminder Enabled
-                              </div>
-                            </div>
-                          ) : (
-                            <div className=" flex items-center ">
-                              <Image
-                                alt=""
-                                width={20}
-                                height={20}
-                                src="/bell-outline.svg"
-                              />
-                              <div className="label duration-500 whitespace-nowrap ">
-                                Turn on Reminder
-                              </div>
-                            </div>
-                          )}
-                        </button>
-                        <button
-                        title="Delete Schedule"
-                          onClick={() => deleteUserSchedule(s.id)}
-                          className="px-3 py-1 bg-red-500/15 rounded-full cursor-pointer"
-                        >
-                          <Image
-                            alt=""
-                            width={20}
-                            height={20}
-                            src="/delete.svg"
-                          />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-sm text-gry/90">
-                      Created: {new Date(s.createdAt).toLocaleDateString()}
-                    </div>
-                    {isExpanded && (
-                      <div className="space-y-4 mt-2">
-                        {s.planItems?.map((item) => (
-                          <div
-                            key={item.id}
-                            className="border p-2 px-4 rounded-2xl bg-white/70"
-                          >
-                            <div className="font-semibold text-xl py-2 mb-1 text-black">
-                              {item.topic}
-                            </div>
-
-                            {item.subtopics?.map((sub, idx) => (
-                              <label
-                                key={sub.id}
-                                className="flex items-center gap-2 text-lg text-gray"
-                              >
-                              <div className="w-4 h-4 border-3 flex items-center justify-center border-purple-500 rounded-md">
-                                <div style={{display: sub.completed? "block": "none"}} className="w-2 h-2 rounded-sm  shrink-0 bg-purple-500"></div>
-                              </div>
-                                <input
-                                  type="checkbox"
-                                  hidden
-                                  checked={sub.completed}
-                                  onChange={() =>
-                                    toggleSubtopicCompleted(
-                                      s.id,
-                                      item.range,
-                                      idx,
-                                      !sub.completed
-                                    )
-                                  }
-                                />
-                                <span
-                                  className={
-                                    sub.completed
-                                      ? "line-through text-gray-400"
-                                      : "text-black"
-                                  }
-                                >
-                                  {sub.title}{" "}
-                                  <span className="text-xs text-gray-500">
-                                    ({item.range})
-                                  </span>
-                                </span>
-                              </label>
-                            ))}
-
-                            <div
-                              style={{
-                                backgroundImage: `conic-gradient(#692DD0, #692DD0 ${
-                                  ((item.subtopics?.filter((s) => s.completed)
-                                    .length ?? 0) /
-                                    (item.subtopics?.length ?? 1)) *
-                                  360
-                                }deg, #cccccc ${
-                                  ((item.subtopics?.filter((s) => s.completed)
-                                    .length ?? 0) /
-                                    (item.subtopics?.length ?? 1)) *
-                                  360
-                                }deg)`,
-                              }}
-                              className="circularProgressBar w-max rounded-full justify-self-end bg-blk p-1.5"
-                            >
-                              <div className="innerCircle rounded-full bg-wht w-[35px] h-[35px] shrink-0 "></div>
-                            </div>
-                            {/* PlanItem progress bar */}
-                            {/* <div className="h-2 w-full bg-gray-200 rounded mt-2">
-                              <div
-                                className="h-2 bg-green-500 rounded"
-                                style={{
-                                  width: `${
-                                    ((item.subtopics?.filter((s) => s.completed)
-                                      .length ?? 0) /
-                                      (item.subtopics?.length ?? 1)) *
-                                    100
-                                  }%`,
-                                }}
-                              ></div>
-                            </div> */}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {userSchedules.map((s) => (
+                <ScheduleCard
+                  key={s.id}
+                  schedule={s}
+                  onToggleReminders={toggleReminders}
+                  onDelete={deleteUserSchedule}
+                  onToggleSubtopicCompleted={toggleSubtopicCompleted}
+                />
+              ))}
             </div>
           )}
         </div>
