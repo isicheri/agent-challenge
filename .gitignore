@@ -104,3 +104,4 @@ bun.lockb
 /mastra/**/*.js
 /mcp-server/**/*.js
 /src/generated/prisma
+prisma/dev.db
