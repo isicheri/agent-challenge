@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import ScheduleCard from "../components/ScheduleCard";
 
 type Subtopic = { id: string; t: string; title: string; completed: boolean };
+
 type PlanItem = {
   id: string;
   range: string;
@@ -31,7 +32,7 @@ export default function StudyPlannerApp() {
   );
   const [durationValue, setDurationValue] = useState<number>(1);
 
-  const [generatedPlan, setGeneratedPlan] = useState<PlanItem[] | null>(null);
+  const [generatedPlan, setGeneratedPlan] = useState<PlanItem[] | []>([]);
   const [createdSchedule, setCreatedSchedule] = useState<any | null>(null);
   const [userSchedules, setUserSchedules] = useState<ScheduleType[]>([]);
 
@@ -48,6 +49,27 @@ export default function StudyPlannerApp() {
     new Set()
   );
 
+  const studyTopics = [
+    "Set Theory",
+    "Linear Algebra",
+    "Computer Networks",
+    "Data Structures",
+    "Microeconomics",
+    "Operating Systems",
+    "Human Psychology",
+    "Digital Logic Design",
+    "Environmental Science",
+    "Artificial Intelligence",
+  ];
+  const [randomTopic, setRandomTopic] = useState<string>(studyTopics[0]);
+  function getRandomTopic() {
+    const randomIndex = Math.floor(Math.random() * studyTopics.length);
+    setRandomTopic(studyTopics[randomIndex]);
+  }
+
+  useEffect(() => {
+    getRandomTopic();
+  }, [generatedPlan]);
   const toggleExpand = (id: string) => {
     setExpandedSchedules((prev) => {
       const newSet = new Set(prev);
@@ -81,7 +103,7 @@ export default function StudyPlannerApp() {
     }
     setError(null);
     setLoading(true);
-    setGeneratedPlan(null);
+    setGeneratedPlan([]);
     try {
       const res = await fetch("/api/schedules/generate", {
         method: "POST",
@@ -120,7 +142,7 @@ export default function StudyPlannerApp() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save schedule");
       setCreatedSchedule(data.schedule);
-      setGeneratedPlan(null);
+      setGeneratedPlan([]);
       setTopicInput("");
       setDurationValue(1);
       await fetchUserSchedules();
@@ -260,7 +282,7 @@ export default function StudyPlannerApp() {
     setUsername("");
     setUserSchedules([]);
     setCreatedSchedule(null);
-    setGeneratedPlan(null);
+    setGeneratedPlan([]);
     window.location.pathname = "/onboarding";
   }
 
@@ -313,7 +335,7 @@ export default function StudyPlannerApp() {
           <form onSubmit={generatePlan} className="space-y-4 text-lg">
             <input
               type="text"
-              placeholder="Topic"
+              placeholder={`Topic (e.g ${randomTopic})`}
               value={topicInput}
               onChange={(e) => setTopicInput(e.target.value)}
               className="w-full p-3 text-black placeholder:text-gry bg-gry/10 bg-gradient-to-br from-gry/15 via-transparent to-gry/5 outline-none border border-transparent shadow-gry/15 focus:border-wht duration-200 focus:shadow-xl focus:bg-wht rounded-full px-5 "
@@ -371,7 +393,7 @@ export default function StudyPlannerApp() {
             </button>
           </form>
 
-          {generatedPlan && (
+          {generatedPlan.length ? (
             <div className="mt-6 border border-gry/15 p-4 bg-gray-50 rounded-xl text-gray">
               <div className="gradText uppercase text-xs">
                 Schedule Generated
@@ -417,6 +439,8 @@ export default function StudyPlannerApp() {
                 />{" "}
               </button>
             </div>
+          ) : (
+            ""
           )}
 
           {/* {createdSchedule && (

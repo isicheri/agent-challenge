@@ -1,7 +1,6 @@
 "use client";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import CoplanaLanding from "../components/Landing";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -130,7 +129,7 @@ const page = (props: Props) => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0 * 0.2 }}
           viewport={{ once: true }}
-          className="bg-white/30 flex items-center gap-4 text-2xl noisy backdrop-blur rotate-3 w-full p-4 rounded-4xl max-w-md -mt-16 opacity-50 blur-[4px] scale-75"
+          className="bg-white/30 text-white flex items-center gap-4 text-2xl noisy backdrop-blur rotate-3 w-full p-4 rounded-4xl max-w-md -mt-16 opacity-50 blur-[4px] scale-75"
         >
           <div className="w-16 bg-wht h-16 rounded-full flex items-center justify-center">
             <Image
@@ -153,7 +152,7 @@ const page = (props: Props) => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 1 * 0.2 }}
           viewport={{ once: true }}
-          className="bg-white/30 flex items-center gap-4 text-2xl noisy backdrop-blur blur-[2px] w-full -rotate-2 p-4 rounded-4xl max-w-md -mt-16  scale-90"
+          className="bg-white/30 text-white flex items-center gap-4 text-2xl noisy backdrop-blur blur-[2px] w-full -rotate-2 p-4 rounded-4xl max-w-md -mt-16  scale-90"
         >
           <div className="w-16 bg-wht h-16 rounded-full flex items-center justify-center">
             <Image
@@ -187,7 +186,7 @@ const page = (props: Props) => {
             <p className="text-gray">Create your personalized study schedule</p>
           </div>
 
-          <div className="tabs-slider-pad flex bg-gray-100/20 relative rounded-full p-2 mb-6">
+          <div className="tabs-slider-pad unsel flex bg-gray-100/20 relative rounded-full p-2 mb-6">
             <div
               style={authMode === "signup" ? { left: "0" } : { left: "50%" }}
               className="tabSlider scale-x-90 shadow-xl shadow-gry/10 scale-y-75 duration-300 w-1/2 h-full bg-gradient-to-br from-white/80 to-transparent z-0 absolute top-0 left-1/2 rounded-full"
@@ -197,7 +196,7 @@ const page = (props: Props) => {
               onClick={() => setAuthMode("signup")}
               className={`relative z-[1] flex-1 py-2 px-4 rounded-lg font-medium ${
                 authMode === "signup"
-                  ? "bg-white- text-blk scale-110"
+                  ? "text-blk scale-110"
                   : "text-gray-600 hover:text-gray"
               } duration-200`}
             >
@@ -208,7 +207,7 @@ const page = (props: Props) => {
               onClick={() => setAuthMode("login")}
               className={`relative z-[1] flex-1 py-2 px-4 rounded-lg font-medium ${
                 authMode === "login"
-                  ? "bg-white- text-blk scale-110"
+                  ? "text-blk scale-110"
                   : "text-gray-600 hover:text-gray"
               } duration-200`}
             >

@@ -1,18 +1,39 @@
 @import "tailwindcss";
 
-body{
+body {
   font-weight: 600;
   max-width: 2200px;
 }
 
+img::selection,
+a::selection,
+button::selection,
+.unsel::selection,
+.unsel *::selection {
+  background: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 
+::selection{
+  background: #843efc;
+  color: white;
+}
 @theme {
   --color-gry: #9c9c9c;
   --color-wht: #f9f9f9;
   --color-blk: #18181d;
   --color-gray: #5b5b5b;
 }
-
+.hero-title {
+  font-optical-sizing: auto;
+  font-style: normal;
+  color: #0e0e0e;
+  background-image: linear-gradient(45deg, #39393f, #0e0e0e);
+  -moz-background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -64,8 +85,6 @@ html {
   border-radius: 300px;
 }
 
-
-
 .spinner {
   animation: spin 1s linear infinite;
 }
@@ -112,9 +131,7 @@ html {
   opacity: 1;
 }
 
-
-
-.gradText{
+.gradText {
   width: max-content;
   letter-spacing: 2;
   background-image: linear-gradient(45deg, #5932a7, #ff6e86, #e8b731);
@@ -126,23 +143,27 @@ html {
   background-clip: text;
 }
 
-
-.bubbles{
+.bubbles {
   background-image: url("/bubbles.jpeg");
 }
 
-.dotted{
+.dotted {
   background-image: url("/dots-bg-01.svg");
   background-size: 35px;
 }
 
-.cta{
+.cta {
   background-image: url("/shapes.jpeg");
 }
 
 .feat-card {
   background-image: url("/grid.svg");
   background-size: 100px;
-
 }
 
+.glow {
+  opacity: 0;
+}
+.featureCard:hover .glow {
+  opacity: 1;
+}
