@@ -20,8 +20,8 @@ const darkerGrotesque = Darker_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "Coplana",
-  description: "An AI-Powered Study Schedule Generator.",
+  title: "Coplana - Your Study Partner",
+  description: "An AI-Powered Study Planner.",
 };
 
 export default function RootLayout({

@@ -2,6 +2,8 @@
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import CoplanaLanding from "../components/Landing";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
 type Props = {};
 
@@ -117,34 +119,72 @@ const page = (props: Props) => {
   return (
     <>
       <main className="min-h-screen  bg-gradient-to-br from-purple-500 to-blue-700 flex flex-col gap-2 items-center justify-center">
-        
         <div className="bubbles w-full h-full bg-cover bg-no-repeat mix-blend-screen bg-center fixed top-0 left-0 "></div>
-        <div className="bg-white/30 flex items-center gap-4 text-2xl noisy backdrop-blur rotate-3 w-full p-4 rounded-4xl max-w-md -mt-16 opacity-50 blur-[4px] scale-75">
+        <motion.div
+          style={{
+            overflow: "hidden",
+            backgroundImage: `url("/grid.svg")`,
+            backgroundSize: 200,
+          }}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0 * 0.2 }}
+          viewport={{ once: true }}
+          className="bg-white/30 flex items-center gap-4 text-2xl noisy backdrop-blur rotate-3 w-full p-4 rounded-4xl max-w-md -mt-16 opacity-50 blur-[4px] scale-75"
+        >
           <div className="w-16 bg-wht h-16 rounded-full flex items-center justify-center">
-            
-            <Image src="/bell-3d.svg" width={40} height={40} alt="" className="shrink-0"/>
-          </div>
-            It's time for the next chapter!
-        </div>
-        <div className="bg-white/30 flex items-center gap-4 text-2xl noisy backdrop-blur blur-[2px] w-full -rotate-2 p-4 rounded-4xl max-w-md -mt-16  scale-90">
-          <div className="w-16 bg-wht h-16 rounded-full flex items-center justify-center">
-            <Image src="/quiz.svg" width={40} height={40} alt="" className="shrink-0"/>
-          </div>
-            Quiz Generated for Week 1!
-        </div>
-
-        <div className="bg-wht/20 noisy bg-gradient-to-br to-wht/40 from-wht backdrop-blur rounded-4xl shadow-2xl p-8 max-w-md w-full -mt-12 z-[20] mx-4">
-          <div className="text-center flex flex-col items-center gap-2 mb-8">
             <Image
-              src="/logo-gradient.svg"
-              width={140}
+              src="/bell-3d.svg"
+              width={40}
               height={40}
-              alt="coplana"
-              className="text-purple-500 text-2xl font-black "
+              alt=""
+              className="shrink-0"
             />
-            <p className="text-gray">
-              Create your personalized study schedule
-            </p>
+          </div>
+          It's time for the next chapter!
+        </motion.div>
+        <motion.div
+          style={{
+            overflow: "hidden",
+            backgroundImage: `url("/grid.svg")`,
+            backgroundSize: 200,
+          }}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 1 * 0.2 }}
+          viewport={{ once: true }}
+          className="bg-white/30 flex items-center gap-4 text-2xl noisy backdrop-blur blur-[2px] w-full -rotate-2 p-4 rounded-4xl max-w-md -mt-16  scale-90"
+        >
+          <div className="w-16 bg-wht h-16 rounded-full flex items-center justify-center">
+            <Image
+              src="/quiz.svg"
+              width={40}
+              height={40}
+              alt=""
+              className="shrink-0"
+            />
+          </div>
+          Quiz Generated for Week 1!
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 1.5 * 0.2 }}
+          viewport={{ once: true }}
+          className="bg-wht/20 noisy bg-gradient-to-br to-wht/40 from-wht backdrop-blur rounded-4xl shadow-2xl p-8 max-w-md w-full -mt-12 z-[20] mx-4"
+        >
+          <div className="text-center flex flex-col items-center gap-2 mb-8">
+            <Link href="/">
+              <Image
+                src="/logo-gradient.svg"
+                width={140}
+                height={40}
+                alt="coplana"
+                className="text-purple-500 text-2xl font-black "
+              />
+            </Link>
+            <p className="text-gray">Create your personalized study schedule</p>
           </div>
 
           <div className="tabs-slider-pad flex bg-gray-100/20 relative rounded-full p-2 mb-6">
@@ -215,10 +255,7 @@ const page = (props: Props) => {
                 : "Sign in"}
             </button>
           </form>
-        </div>
-      
-      
-
+        </motion.div>
       </main>
     </>
   );
