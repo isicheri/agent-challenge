@@ -91,6 +91,17 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
     ) ?? 0;
   const scheduleProgress = totalSubtopics ? (completedSubtopics / totalSubtopics) * 100 : 0;
 
+  // Helper: Check if all subtopics in a planItem are completed
+  const isItemFullyCompleted = (item: PlanItem) => {
+    return item.subtopics?.every((sub) => sub.completed) ?? false;
+  };
+
+  // Helper: Check if quiz has been completed by user
+  const hasCompletedQuiz = (item: PlanItem) => {
+    if (!item.quiz?.attempts) return false;
+    return item.quiz.attempts.some((attempt) => attempt.completedAt !== null);
+  };
+
   return (
     <>
       <div className="p-4 rounded-xl bg-gry/8">
@@ -204,81 +215,116 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           ref={contentRef}
           className={`Saved-Schedules-Panel ease-out duration-500 space-y-4 mt-2`}
         >
-          {s.planItems?.map((item, index) => (
-            <div
-              style={{
-                transition: "0.5s ease",
-                opacity: expanded ? 1 : 0,
-                transitionDelay: `${index * 0.15}s`,
-                transform: expanded ? "scale(1) translateX(0)" : "scale(0.7) translateX(-140px)",
-              }}
-              key={item.id}
-              className="scheduleCard border border-gry/20 p-2 px-4 rounded-2xl bg-white/70"
-            >
-              <div className="font-semibold text-xl py-2 mb-1 text-black">{item.topic}</div>
-
-              {item.subtopics?.map((sub, idx) => (
-                <label key={sub.id} className="flex items-center gap-2 text-lg text-gray">
-                  <div className="custom-checkbox w-4 h-4 border-3 flex items-center justify-center border-purple-500 rounded-md">
-                    <div
-                      style={{ display: sub.completed ? "block" : "none" }}
-                      className="w-2 h-2 rounded-sm  shrink-0 bg-purple-500"
-                    ></div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    hidden
-                    checked={sub.completed}
-                    onChange={() =>
-                      onToggleSubtopicCompleted(s.id, item.range, idx, !sub.completed)
-                    }
-                  />
-                  <div
-                    title={sub.completed ? "Mark as undone" : "Mark as complete"}
-                    className={`${
-                      sub.completed ? "line-through text-gray-400" : "text-black"
-                    } pb-3 border-b border-gry/15 hover:bg-gry/10 px-4 duration-200 rounded-xl w-full`}
-                  >
-                    {sub.title} <p className="text-sm text-gray">({item.range})</p>
-                  </div>
-                </label>
-              ))}
-
-              {/* Quiz Button */}
-              {item.quiz && (
-                <button
-                  onClick={() => handleStartQuiz(item.quiz!.id!)}
-                  className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg"
-                >
-                  📝 Take Quiz
-                </button>
-              )}
-
+          {s.planItems?.map((item, index) => {
+            const fullyCompleted = isItemFullyCompleted(item);
+            const quizCompleted = hasCompletedQuiz(item);
+            
+            return (
               <div
                 style={{
-                  backgroundImage: `conic-gradient(#692DD0, #692DD0 ${
-                    ((item.subtopics?.filter((s) => s.completed).length ?? 0) /
-                      (item.subtopics?.length ?? 1)) *
-                    360
-                  }deg, #cccccc ${
-                    ((item.subtopics?.filter((s) => s.completed).length ?? 0) /
-                      (item.subtopics?.length ?? 1)) *
-                    360
-                  }deg)`,
+                  transition: "0.5s ease",
+                  opacity: expanded ? 1 : 0,
+                  transitionDelay: `${index * 0.15}s`,
+                  transform: expanded ? "scale(1) translateX(0)" : "scale(0.7) translateX(-140px)",
                 }}
-                className="circularProgressBar w-max rounded-full justify-self-end bg-blk p-1.5"
+                key={item.id}
+                className={`scheduleCard border border-gry/20 p-2 px-4 rounded-2xl ${
+                  fullyCompleted ? "bg-green-50/50" : "bg-white/70"
+                }`}
               >
-                <div className="innerCircle rounded-full flex items-center justify-center font-[700]  text-gray bg-wht w-[35px] h-[35px] shrink-0 ">
-                  {Math.round(
-                    ((item.subtopics?.filter((s) => s.completed).length ?? 0) /
-                      (item.subtopics?.length ?? 1)) *
-                      100
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-xl py-2 mb-1 text-black">{item.topic}</div>
+                  {fullyCompleted && (
+                    <div className="text-green-600 text-sm font-semibold flex items-center gap-1">
+                      <span>✅</span> Completed
+                    </div>
                   )}
-                  %
+                </div>
+
+                {item.subtopics?.map((sub, idx) => (
+                  <label
+                    key={sub.id}
+                    className={`flex items-center gap-2 text-lg text-gray ${
+                      fullyCompleted ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+                    }`}
+                  >
+                    <div className="custom-checkbox w-4 h-4 border-3 flex items-center justify-center border-purple-500 rounded-md">
+                      <div
+                        style={{ display: sub.completed ? "block" : "none" }}
+                        className="w-2 h-2 rounded-sm  shrink-0 bg-purple-500"
+                      ></div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      hidden
+                      checked={sub.completed}
+                      disabled={fullyCompleted} // Disable if all completed
+                      onChange={() =>
+                        !fullyCompleted && onToggleSubtopicCompleted(s.id, item.range, idx, !sub.completed)
+                      }
+                    />
+                    <div
+                      title={
+                        fullyCompleted
+                          ? "All tasks completed - locked"
+                          : sub.completed
+                          ? "Mark as undone"
+                          : "Mark as complete"
+                      }
+                      className={`${
+                        sub.completed ? "line-through text-gray-400" : "text-black"
+                      } pb-3 border-b border-gry/15 ${
+                        !fullyCompleted && "hover:bg-gry/10"
+                      } px-4 duration-200 rounded-xl w-full`}
+                    >
+                      {sub.title} <p className="text-sm text-gray">({item.range})</p>
+                    </div>
+                  </label>
+                ))}
+
+                {/* Quiz Button - Only show if quiz exists, all tasks complete, and not already taken */}
+                {item.quiz && fullyCompleted && !quizCompleted && (
+                  <button
+                    onClick={() => handleStartQuiz(item.quiz!.id!)}
+                    className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg animate-pulse"
+                  >
+                    📝 Take Quiz
+                  </button>
+                )}
+
+                {/* Quiz Completed Badge */}
+                {item.quiz && quizCompleted && (
+                  <div className="mt-4 px-6 py-2 bg-green-500/20 text-green-700 rounded-full flex items-center gap-2 font-semibold">
+                    ✅ Quiz Completed
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    backgroundImage: `conic-gradient(#692DD0, #692DD0 ${
+                      ((item.subtopics?.filter((s) => s.completed).length ?? 0) /
+                        (item.subtopics?.length ?? 1)) *
+                      360
+                    }deg, #cccccc ${
+                      ((item.subtopics?.filter((s) => s.completed).length ?? 0) /
+                        (item.subtopics?.length ?? 1)) *
+                      360
+                    }deg)`,
+                  }}
+                  className="circularProgressBar w-max rounded-full justify-self-end bg-blk p-1.5"
+                >
+                  <div className="innerCircle rounded-full flex items-center justify-center font-[700]  text-gray bg-wht w-[35px] h-[35px] shrink-0 ">
+                    {Math.round(
+                      ((item.subtopics?.filter((s) => s.completed).length ?? 0) /
+                        (item.subtopics?.length ?? 1)) *
+                        100
+                    )}
+                    %
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

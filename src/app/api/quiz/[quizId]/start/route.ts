@@ -9,7 +9,7 @@ const startSchema = z.object({
 
 export async function POST(
   req: Request,
-  { params }: { params: { quizId: string } }
+  { params }: { params: Promise<{ quizId: string }> } // ← Changed to Promise
 ) {
   try {
     const body = await req.json();
@@ -23,7 +23,7 @@ export async function POST(
     }
 
     const { userId } = parsed.data;
-    const { quizId } = params;
+    const { quizId } = await params; // ← Await params
 
     // Get quiz with questions
     const quiz = await prisma.quiz.findUnique({

@@ -10,7 +10,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email and username are required" }, { status: 400 });
     }
 
-    // Find user by both email and username to ensure they match
     const user = await prisma.user.findFirst({
       where: {
         AND: [
@@ -24,15 +23,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Fetch all schedules for this user
-  const schedules = await prisma.schedule.findMany({
-  where: { userId: user.id },
-  include: {
-    planItems: {
-      include: { subtopics: true },
-    },
-  },
-});
+    // Fetch schedules with quiz and attempts data
+    const schedules = await prisma.schedule.findMany({
+      where: { userId: user.id },
+      include: {
+        planItems: {
+          include: { 
+            subtopics: true,
+            quiz: {
+              include: {
+                attempts: {
+                  where: { userId: user.id }, // Only get current user's attempts
+                  select: {
+                    id: true,
+                    completedAt: true,
+                    score: true,
+                    percentage: true
+                  }
+                }
+              }
+            }
+          },
+        },
+      },
+    });
 
     return NextResponse.json({ schedules }, { status: 200 });
   } catch (error: any) {

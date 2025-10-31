@@ -24,7 +24,7 @@ type UserAnswerData = {
 
 export async function POST(
   req: Request,
-  { params }: { params: { quizId: string } }
+ { params }: { params: Promise<{ quizId: string }> } 
 ) {
   try {
     const body = await req.json();
@@ -38,6 +38,9 @@ export async function POST(
     }
 
     const { attemptId, answers, timeTaken } = parsed.data;
+     const { quizId } = await params; 
+
+     console.log(quizId)
 
     // Get attempt and quiz questions
     const attempt = await prisma.quizAttempt.findUnique({
