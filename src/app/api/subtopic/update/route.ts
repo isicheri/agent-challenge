@@ -22,7 +22,7 @@ export async function PATCH(req: Request) {
 
     // Transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
-      // 1️⃣ Find the PlanItem by scheduleId + range
+      // ⿡ Find the PlanItem by scheduleId + range
       const planItem = await tx.planItem.findFirst({
         where: { scheduleId, range },
         include: { 
@@ -32,17 +32,17 @@ export async function PATCH(req: Request) {
       });
       if (!planItem) throw new Error("PlanItem not found for the given range");
 
-      // 2️⃣ Check the subtopic exists
+      // ⿢ Check the subtopic exists
       const subtopic = planItem.subtopics[subIdx];
       if (!subtopic) throw new Error("Subtopic index out of range");
 
-      // 3️⃣ Update the completed field
+      // ⿣ Update the completed field
       const updatedSubtopic = await tx.subtopic.update({
         where: { id: subtopic.id },
         data: { completed }
       });
 
-      // 4️⃣ Check if ALL subtopics are now completed
+      // ⿤ Check if ALL subtopics are now completed
       const allSubtopics = await tx.subtopic.findMany({
         where: { planItemId: planItem.id }
       });
@@ -57,7 +57,7 @@ export async function PATCH(req: Request) {
       };
     });
 
-    // 5️⃣ If all completed AND no quiz exists, generate quiz
+    // ⿥ If all completed AND no quiz exists, generate quiz
     let generatedQuiz = null;
     if (result.allCompleted && !result.hasQuiz) {
       console.log("🎯 All subtopics completed! Generating quiz...");
@@ -140,6 +140,6 @@ export async function PATCH(req: Request) {
 
   } catch (err: any) {
     console.error("subtopic update error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
-  }
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  }
 }

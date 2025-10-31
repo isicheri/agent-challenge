@@ -1,9 +1,9 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import { CalendarCheck, ListTodo } from "lucide-react";
 import { useState, useEffect } from "react";
 import ScheduleCard from "../components/ScheduleCard";
-
 
 type Subtopic = { id: string; t: string; title: string; completed: boolean };
 
@@ -44,12 +44,11 @@ export default function StudyPlannerApp() {
   const [enablingReminder, setEnablingReminder] = useState(false);
   const [completingTask, setCompletingTask] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [tabMode, setTabMode] = useState<string>("schedules");
   const [expanded, setExpanded] = useState<boolean>(false);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(
     new Set()
   );
-
 
   const studyTopics = [
     "Set Theory",
@@ -315,7 +314,7 @@ export default function StudyPlannerApp() {
           <div className="account-panel flex items-center gap-2">
             <Image alt="" src="/profile-icon.svg" width={25} height={25} />
             <span className=" capitalize ">
-              Welcome, <b>{username? username: "Guest user"}</b>
+              Welcome, <b>{username ? username : "Guest user"}</b>
             </span>
           </div>
           <button
@@ -457,26 +456,63 @@ export default function StudyPlannerApp() {
 
         {/* User Schedules */}
         <div className="All-Schedules-Panel h-max lg:sticky top-4 w-full bg-white bg-gry/3--text-white rounded-3xl p-6">
-          <h2 className="text-2xl text-gray font-semibold mb-4">
-            My Schedules
-          </h2>
-          {userSchedules.length === 0 ? (
-            <div className="text-center text-3xl flex gap-2 flex-col items-center py-8 text-gry">
-              <Image src="/cactus.png" alt="cactus" width={140} height={140} />
-              No schedules yet. Create your first plan!
-            </div>
+          <div className="tab-header flex items-center gap-2 text-lg text-gry font-semibold mb-4">
+            <p
+              onClick={() => {
+                setTabMode("schedules");
+              }}
+              className={` cursor-pointer flex items-center gap-2 ${
+                tabMode == "schedules"
+                  ? "text-purple-500 bg-purple-300/30 "
+                  : " hover:bg-gry/10"
+              } p-2 px-4 rounded-xl duration-200`}
+            >
+              <CalendarCheck size={16}  />
+              My Schedules
+            </p>
+            <p
+              onClick={() => {
+                setTabMode("quizzes");
+              }}
+              className={` cursor-pointer flex items-center gap-2 ${
+                tabMode == "quizzes"
+                  ? "text-purple-500 bg-purple-300/30 "
+                  : " hover:bg-gry/10"
+              } p-2 px-4 rounded-xl duration-200`}
+            >
+              <ListTodo  size={16} />
+              All Quizzes
+            </p>
+          </div>
+
+          {tabMode == "schedules" ? (
+            <>
+              {userSchedules.length === 0 ? (
+                <div className="text-center text-3xl flex gap-2 flex-col items-center py-8 text-gry">
+                  <Image
+                    src="/cactus.png"
+                    alt="cactus"
+                    width={140}
+                    height={140}
+                  />
+                  No schedules yet. Create your first plan!
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userSchedules.map((s) => (
+                    <ScheduleCard
+                      key={s.id}
+                      schedule={s}
+                      onToggleReminders={toggleReminders}
+                      onDelete={deleteUserSchedule}
+                      onToggleSubtopicCompleted={toggleSubtopicCompleted}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
-            <div className="space-y-4">
-              {userSchedules.map((s) => (
-                <ScheduleCard
-                  key={s.id}
-                  schedule={s}
-                  onToggleReminders={toggleReminders}
-                  onDelete={deleteUserSchedule}
-                  onToggleSubtopicCompleted={toggleSubtopicCompleted}
-                />
-              ))}
-            </div>
+            <></>
           )}
         </div>
       </div>
