@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import ScheduleCard from "../components/ScheduleCard";
 
+
 type Subtopic = { id: string; t: string; title: string; completed: boolean };
 
 type PlanItem = {
@@ -48,6 +49,7 @@ export default function StudyPlannerApp() {
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(
     new Set()
   );
+
 
   const studyTopics = [
     "Set Theory",
@@ -312,8 +314,8 @@ export default function StudyPlannerApp() {
         <div className="flex items-center gap-4">
           <div className="account-panel flex items-center gap-2">
             <Image alt="" src="/profile-icon.svg" width={25} height={25} />
-            <span className="">
-              Welcome, <b>{username}</b>
+            <span className=" capitalize ">
+              Welcome, <b>{username? username: "Guest user"}</b>
             </span>
           </div>
           <button

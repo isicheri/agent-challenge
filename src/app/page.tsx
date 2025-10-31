@@ -4,14 +4,14 @@ import React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-// import Boxes from "../app/components/Boxes"
+import Boxes from "../app/components/Boxes"
 
 export default function CoplanaLanding() {
   return (
     <>
       {/* <div className="w-full h-40 bg-white"></div> */}
       {/* <div className=" bg-red-50 w-full h-screen -z-[20]"> */}
-        {/* <Boxes /> */}
+        <Boxes />
       {/* </div> */}
       <div className="min-h-screen relative dotted|bg-white|bg-gradient-to-b|from-white|to-gray-100 text-blk flex flex-col">
         {/* Hero Section */}
@@ -37,7 +37,7 @@ export default function CoplanaLanding() {
             BIG TOPICS, LITTLE TIMEFRAME.
           </div>
           <motion.h1
-            className="text-7xl hero-title py-4 lg:text-8xl font-black leading-[4.5rem] mb-4"
+            className="text-7xl hero-title py-4 lg:text-8xl font-semibold leading-[4.5rem] mb-4"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
