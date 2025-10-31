@@ -32,17 +32,17 @@ export async function PATCH(req: Request) {
       });
       if (!planItem) throw new Error("PlanItem not found for the given range");
 
-      // ⿢ Check the subtopic exists
+      // Check the subtopic exists
       const subtopic = planItem.subtopics[subIdx];
       if (!subtopic) throw new Error("Subtopic index out of range");
 
-      // ⿣ Update the completed field
+      // Update the completed field
       const updatedSubtopic = await tx.subtopic.update({
         where: { id: subtopic.id },
         data: { completed }
       });
 
-      // ⿤ Check if ALL subtopics are now completed
+      // Check if ALL subtopics are now completed
       const allSubtopics = await tx.subtopic.findMany({
         where: { planItemId: planItem.id }
       });
@@ -57,7 +57,7 @@ export async function PATCH(req: Request) {
       };
     });
 
-    // ⿥ If all completed AND no quiz exists, generate quiz
+    // If all completed AND no quiz exists, generate quiz
     let generatedQuiz = null;
     if (result.allCompleted && !result.hasQuiz) {
       console.log("🎯 All subtopics completed! Generating quiz...");
@@ -140,6 +140,6 @@ export async function PATCH(req: Request) {
 
   } catch (err: any) {
     console.error("subtopic update error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
-  }
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  }
 }
