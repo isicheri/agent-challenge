@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Boxes from "../app/components/Boxes"
 
+
 export default function CoplanaLanding() {
   return (
     <>
