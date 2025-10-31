@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarCheck, ListTodo } from "lucide-react";
 import { useState, useEffect } from "react";
 import ScheduleCard from "../components/ScheduleCard";
+import LoaderOverlay from "../components/LoaderOverlay";
 
 type Subtopic = { id: string; t: string; title: string; completed: boolean };
 
@@ -306,6 +307,7 @@ export default function StudyPlannerApp() {
 
   return (
     <main className="min-h-screen --font-darker-grotesque bg-gray-100 -bg-[#191919]">
+      <LoaderOverlay />
       <div className="header bg-[#18181d] text-white p-4 md:p-6 md:px-8 lg:px-16 flex justify-between max-w- mx-auto">
         <Link href="/">
           <Image src="/logo.svg" width={140} height={40} alt="" />
@@ -467,7 +469,7 @@ export default function StudyPlannerApp() {
                   : " hover:bg-gry/10"
               } p-2 px-4 rounded-xl duration-200`}
             >
-              <CalendarCheck size={16}  />
+              <CalendarCheck size={16} />
               My Schedules
             </p>
             <p
@@ -480,7 +482,7 @@ export default function StudyPlannerApp() {
                   : " hover:bg-gry/10"
               } p-2 px-4 rounded-xl duration-200`}
             >
-              <ListTodo  size={16} />
+              <ListTodo size={16} />
               All Quizzes
             </p>
           </div>

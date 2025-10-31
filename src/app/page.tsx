@@ -114,11 +114,12 @@ export default function CoplanaLanding() {
                   backgroundImage: `url("/grid.svg")`,
                   backgroundSize: 200,
                 }}
-                className="featureCard p-6 border border-wht hover:scale-[1.02] duration-1000 relative bg-blk bg-gradient-to-br from-black to-blk text-white rounded-4xl transition-all"
+                className="featureCard p-6 border border-wht hover:scale-[1.02] duration-1000 relative bg-blk bg-gradient-to-br from-black to-blk text-white rounded-[3rem] transition-all"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.2 }}
                 viewport={{ once: true }}
+                whileHover={{boxShadow: "#4b91f365 0px 20px 30px"}}
               >
                 <div className="glow w-[120px] h-[120px] duration-500 bg-blue-500 border-8 border-cyan-300 blur-2xl rounded-full absolute -top-8 -left-8"></div>
                 <Image
