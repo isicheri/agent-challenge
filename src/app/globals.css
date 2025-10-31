@@ -158,8 +158,10 @@ html {
 
 .feat-card {
   background-image: url("/grid.svg");
-  background-size: 100px;
+  background-size: 120px;
+  /* color: #4b91f365; */
 }
+
 
 .glow {
   opacity: 0;
