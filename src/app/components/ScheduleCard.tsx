@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import QuizModal from "./QuizModal";
+import { Quiz } from "../dashboard/page";
 
 type Subtopic = { id: string; t: string; title: string; completed: boolean };
 type PlanItem = {
@@ -7,6 +9,7 @@ type PlanItem = {
   range: string;
   topic: string;
   subtopics: Subtopic[];
+  quiz?: Partial<Quiz>;
 };
 type ScheduleType = {
   id: string;
@@ -26,6 +29,7 @@ interface ScheduleCardProps {
     subtopicIdx: number,
     completed: boolean
   ) => void;
+  userId: string | null;
 }
 
 const ScheduleCard: React.FC<ScheduleCardProps> = ({
@@ -33,11 +37,14 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   onToggleReminders,
   onDelete,
   onToggleSubtopicCompleted,
+  userId,
 }) => {
-  // Local states for dropdown and enabling reminder
+  // Local states
   const [expanded, setExpanded] = useState(false);
   const [enablingReminder, setEnablingReminder] = useState(false);
   const [deletingSchedule, setDeletingSchedule] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
 
   const handleExpand = () => setExpanded((prev) => !prev);
 
@@ -60,6 +67,11 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
     }
   };
 
+  function handleStartQuiz(quizId: string) {
+    setSelectedQuizId(quizId);
+    setShowQuizModal(true);
+  }
+
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState("0px");
 
@@ -68,25 +80,19 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
       setHeight(expanded ? `${contentRef.current.scrollHeight}px` : "0px");
     }
   }, [expanded]);
+
   // Progress logic
   const totalSubtopics =
-    s.planItems?.reduce(
-      (acc, item) => acc + (item.subtopics?.length ?? 0),
-      0
-    ) ?? 0;
+    s.planItems?.reduce((acc, item) => acc + (item.subtopics?.length ?? 0), 0) ?? 0;
   const completedSubtopics =
     s.planItems?.reduce(
-      (acc, item) =>
-        acc + (item.subtopics?.filter((sub) => sub.completed).length ?? 0),
+      (acc, item) => acc + (item.subtopics?.filter((sub) => sub.completed).length ?? 0),
       0
     ) ?? 0;
-  const scheduleProgress = totalSubtopics
-    ? (completedSubtopics / totalSubtopics) * 100
-    : 0;
+  const scheduleProgress = totalSubtopics ? (completedSubtopics / totalSubtopics) * 100 : 0;
 
   return (
     <>
-      {" "}
       <div className="p-4 rounded-xl bg-gry/8">
         <div className="flex justify-between mb-2 items-center">
           <div>
@@ -96,9 +102,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
             >
               <Image
                 src="/arrow-down.svg"
-                className={` duration-200 ${
-                  expanded ? "-scale-y-100" : "scale-y-100"
-                }`}
+                className={` duration-200 ${expanded ? "-scale-y-100" : "scale-y-100"}`}
                 alt=""
                 width={30}
                 height={30}
@@ -134,9 +138,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
               {s.remindersEnabled ? (
                 <div className="notf-btn flex  items-center ">
                   <Image alt="" width={20} height={20} src="/bell-fill.svg" />
-                  <div className="label duration-500 whitespace-nowrap ">
-                    Reminder Enabled
-                  </div>
+                  <div className="label duration-500 whitespace-nowrap ">Reminder Enabled</div>
                 </div>
               ) : enablingReminder ? (
                 <div className="notf-btn flex items-center ">
@@ -147,21 +149,12 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                     height={20}
                     className="spinner"
                   />
-                  <div className="label duration-500 whitespace-nowrap ">
-                    Toggling
-                  </div>
+                  <div className="label duration-500 whitespace-nowrap ">Toggling</div>
                 </div>
               ) : (
                 <div className=" flex items-center ">
-                  <Image
-                    alt=""
-                    width={20}
-                    height={20}
-                    src="/bell-outline.svg"
-                  />
-                  <div className="label duration-500 whitespace-nowrap ">
-                    Turn on Reminder
-                  </div>
+                  <Image alt="" width={20} height={20} src="/bell-outline.svg" />
+                  <div className="label duration-500 whitespace-nowrap ">Turn on Reminder</div>
                 </div>
               )}
             </button>
@@ -187,17 +180,11 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
               )}
             </button>
             <button
-              // onClick={handleToggleReminders}
               title="Export Schedules as files (Feature in progress)"
               className={`p-3 h-max notf-btn cursor-not-allowed rounded-2xl text-sm bg-blk active:scale-90 duration-200`}
               disabled={true}
             >
-             <Image
-                    alt=""
-                    width={16}
-                    height={16}
-                    src="/download.svg"
-                  />
+              <Image alt="" width={16} height={16} src="/download.svg" />
             </button>
           </div>
         </div>
@@ -205,15 +192,13 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           Created: {new Date(s.createdAt).toLocaleDateString()}
         </div>
 
-        {/* //ALL SCHEDULE ITEMS */}
+        {/* ALL SCHEDULE ITEMS */}
         <div
           style={{
             overflow: "hidden",
             transition: "0.7s ease",
             opacity: expanded ? 1 : 0,
-            transform: expanded
-              ? "scaleY(1) translateY(0)"
-              : "scaleY(0.85) translateY(-70px)",
+            transform: expanded ? "scaleY(1) translateY(0)" : "scaleY(0.85) translateY(-70px)",
             maxHeight: height,
           }}
           ref={contentRef}
@@ -225,22 +210,15 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                 transition: "0.5s ease",
                 opacity: expanded ? 1 : 0,
                 transitionDelay: `${index * 0.15}s`,
-                transform: expanded
-                  ? "scale(1) translateX(0)"
-                  : "scale(0.7) translateX(-140px)",
+                transform: expanded ? "scale(1) translateX(0)" : "scale(0.7) translateX(-140px)",
               }}
               key={item.id}
               className="scheduleCard border border-gry/20 p-2 px-4 rounded-2xl bg-white/70"
             >
-              <div className="font-semibold text-xl py-2 mb-1 text-black">
-                {item.topic}
-              </div>
+              <div className="font-semibold text-xl py-2 mb-1 text-black">{item.topic}</div>
 
               {item.subtopics?.map((sub, idx) => (
-                <label
-                  key={sub.id}
-                  className="flex items-center gap-2 text-lg text-gray"
-                >
+                <label key={sub.id} className="flex items-center gap-2 text-lg text-gray">
                   <div className="custom-checkbox w-4 h-4 border-3 flex items-center justify-center border-purple-500 rounded-md">
                     <div
                       style={{ display: sub.completed ? "block" : "none" }}
@@ -252,29 +230,30 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                     hidden
                     checked={sub.completed}
                     onChange={() =>
-                      onToggleSubtopicCompleted(
-                        s.id,
-                        item.range,
-                        idx,
-                        !sub.completed
-                      )
+                      onToggleSubtopicCompleted(s.id, item.range, idx, !sub.completed)
                     }
                   />
                   <div
-                    title={
-                      sub.completed ? "Mark as undone" : "Mark as complete"
-                    }
+                    title={sub.completed ? "Mark as undone" : "Mark as complete"}
                     className={`${
-                      sub.completed
-                        ? "line-through text-gray-400"
-                        : "text-black"
+                      sub.completed ? "line-through text-gray-400" : "text-black"
                     } pb-3 border-b border-gry/15 hover:bg-gry/10 px-4 duration-200 rounded-xl w-full`}
                   >
-                    {sub.title}{" "}
-                    <p className="text-sm text-gray">({item.range})</p>
+                    {sub.title} <p className="text-sm text-gray">({item.range})</p>
                   </div>
                 </label>
               ))}
+
+              {/* Quiz Button */}
+              {item.quiz && (
+                <button
+                  onClick={() => handleStartQuiz(item.quiz!.id!)}
+                  className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg"
+                >
+                  📝 Take Quiz
+                </button>
+              )}
+
               <div
                 style={{
                   backgroundImage: `conic-gradient(#692DD0, #692DD0 ${
@@ -302,7 +281,18 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           ))}
         </div>
       </div>
-    
+
+      {/* Quiz Modal */}
+      {showQuizModal && selectedQuizId && userId && (
+        <QuizModal
+          quizId={selectedQuizId}
+          userId={userId}
+          onClose={() => {
+            setShowQuizModal(false);
+            setSelectedQuizId(null);
+          }}
+        />
+      )}
     </>
   );
 };
