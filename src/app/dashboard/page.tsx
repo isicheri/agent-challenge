@@ -5,6 +5,7 @@ import { CalendarCheck, ListTodo } from "lucide-react";
 import { useState, useEffect } from "react";
 import ScheduleCard from "../components/ScheduleCard";
 import { Prisma } from "@prisma/client";
+import LoaderOverlay from "../components/LoaderOverlay";
 
 export type Quiz = Prisma.QuizGetPayload<{
   include: {
