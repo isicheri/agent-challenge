@@ -21,6 +21,7 @@
     "start": "concurrently \"npm:start:agent\" \"npm:start:ui\""
   },
   "dependencies": {
+    "@ag-ui/client": "^0.0.39",
     "@ag-ui/mastra": "0.1.0",
     "@ai-sdk/mistral": "^2.0.19",
     "@ai-sdk/openai": "^2.0.52",
