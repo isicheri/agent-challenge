@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import QuizModal from "./QuizModal";
 import { Quiz } from "../dashboard/page";
-import { Sparkle } from "lucide-react";
 
 type Subtopic = { id: string; t: string; title: string; completed: boolean };
 type PlanItem = {
@@ -29,7 +28,7 @@ interface ScheduleCardProps {
     range: string,
     subtopicIdx: number,
     completed: boolean
-  ) => Promise<void>;
+  ) => void;
   userId: string | null;
 }
 
@@ -46,7 +45,6 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   const [deletingSchedule, setDeletingSchedule] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
-  const [loadingSubtopics, setLoadingSubtopics] = useState<Set<string>>(new Set());
 
   const handleExpand = () => setExpanded((prev) => !prev);
 
@@ -73,28 +71,6 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
     setSelectedQuizId(quizId);
     setShowQuizModal(true);
   }
-
-  const handleToggleSubtopic = async (
-    scheduleId: string,
-    range: string,
-    subIdx: number,
-    completed: boolean,
-    subtopicId: string
-  ) => {
-    setLoadingSubtopics((prev) => new Set(prev).add(subtopicId));
-    try {
-      await onToggleSubtopicCompleted(scheduleId, range, subIdx, completed);
-    } finally {
-      // Small delay to show the loading effect
-      setTimeout(() => {
-        setLoadingSubtopics((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(subtopicId);
-          return newSet;
-        });
-      }, 300);
-    }
-  };
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState("0px");
@@ -239,101 +215,11 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           ref={contentRef}
           className={`Saved-Schedules-Panel ease-out duration-500 space-y-4 mt-2`}
         >
-<<<<<<< HEAD
           {s.planItems?.map((item, index) => {
             const fullyCompleted = isItemFullyCompleted(item);
             const quizCompleted = hasCompletedQuiz(item);
             
             return (
-=======
-          {s.planItems?.map((item, index) => (
-            <div
-              style={{
-                transition: "0.5s ease",
-                opacity: expanded ? 1 : 0,
-                transitionDelay: `${index * 0.15}s`,
-                transform: expanded ? "scale(1) translateX(0)" : "scale(0.7) translateX(-140px)",
-              }}
-              key={item.id}
-              className="scheduleCard border border-gry/20 p-2 px-4 rounded-2xl bg-white/70"
-            >
-              <div className="font-semibold text-xl py-2 mb-1 text-black">{item.topic}</div>
-
-              {item.subtopics?.map((sub, idx) => {
-                const isLoading = loadingSubtopics.has(sub.id);
-                // const allSubtopicsCompleted = item.subtopics?.every((s) => s.completed) ?? false;
-                return (
-                  <label key={sub.id} className="flex items-center gap-2 text-lg text-gray">
-                    <div className="custom-checkbox w-4 h-4 border-3 flex items-center justify-center border-purple-500 rounded-md relative">
-                      {isLoading ? (
-                        <Image
-                          src="/loader.svg"
-                          width={12}
-                          height={12}
-                          alt=""
-                          className="spinner"
-                        />
-                      ) : (
-                        <div
-                          style={{ display: sub.completed ? "block" : "none" }}
-                          className="w-2 h-2 rounded-sm  shrink-0 bg-purple-500"
-                        ></div>
-                      )}
-                    </div>
-                    <input
-                      type="checkbox"
-                      hidden
-                      checked={sub.completed}
-                      disabled={isLoading}
-                      onChange={() =>
-                        handleToggleSubtopic(s.id, item.range, idx, !sub.completed, sub.id)
-                      }
-                    />
-                    <div
-                      title={sub.completed ? "Mark as undone" : "Mark as complete"}
-                      className={`${
-                        sub.completed ? "line-through text-gray-400" : "text-black"
-                      } pb-3 border-b border-gry/15 hover:bg-gry/10 px-4 duration-200 rounded-xl w-full ${
-                        isLoading ? "opacity-60" : ""
-                      }`}
-                    >
-                      {sub.title} <p className="text-sm text-gray">({item.range})</p>
-                    </div>
-                  </label>
-                );
-              })}
-
-              {/* Generate Quiz Button - Only shows when all subtopics are completed */}
-              {/* {(() => {
-                const allSubtopicsCompleted =
-                  (item.subtopics?.length ?? 0) > 0 &&
-                  item.subtopics?.every((s) => s.completed) === true;
-                const hasQuiz = !!item.quiz;
-
-                return (
-                  <div className="mt-4 flex items-center gap-3">
-                    {allSubtopicsCompleted && !hasQuiz && (
-                      <button
-                        className="pr-4 p-2 bg-blk text-white rounded-xl hover:bg-black flex items-center gap-2 font-semibold transition-all hover:shadow-lg opacity-75 cursor-not-allowed"
-                        disabled
-                        title="Quiz generation feature coming soon"
-                      >
-                        <Sparkle size={16} /> Generate Quiz
-                      </button>
-                    )}
-                    {hasQuiz && (
-                      <button
-                        onClick={() => handleStartQuiz(item.quiz!.id!)}
-                        className="px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg"
-                      >
-                         Take Quiz
-                      </button>
-                    )}
-                  </div>
-                );
-              })()} */}
-
->>>>>>> 026c0aa289c964095093792e1997b3fcc62ac4f2
               <div
                 style={{
                   transition: "0.5s ease",
