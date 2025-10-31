@@ -48,5 +48,6 @@ USER appuser
 
 EXPOSE 3000
 EXPOSE 4111
+EXPOSE 4112
 
 ENTRYPOINT ["npm", "start"]

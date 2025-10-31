@@ -1,6 +1,7 @@
 import { MCPServer } from "@mastra/mcp"
 import { studyPlannerTool } from "./tools/studyPlannerTool.js";
 import { studyReminderTool } from "./tools/reminderTool.js";
+import { quizGeneratorTool } from "./tools/quizGeneratorTool.js";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
@@ -9,7 +10,7 @@ dotenv.config();
 export const server = new MCPServer({
   name: "Study Assistant MCP Server",
   version: "1.0.0",
-  tools: { studyPlannerTool,studyReminderTool },
+  tools: { studyPlannerTool,studyReminderTool,quizGeneratorTool },
 });
 
 
@@ -64,6 +65,7 @@ export async function startHttpServer(port: number = 4112) {
     console.log(`📊 Health check available at ${baseUrl}/health`);
     console.log(`🔧 Available tools: studyPlannerTool`);
     console.log(`🔧 Available tools: studyReminderTool`);
+    console.log(`🔧 Available tools: quizGeneratorTool`);
   });
 
   // Graceful shutdown

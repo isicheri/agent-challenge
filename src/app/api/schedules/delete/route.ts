@@ -33,39 +33,17 @@ export async function DELETE(request: Request) {
       );
     }
 
-    try {
-      // 🧹 Step 1: Delete subtopics (deepest level first)
-      await prisma.subtopic.deleteMany({
-        where: {
-          planItem: {
-            scheduleId: schedule.id,
-          },
-        },
-      });
+    // 🚀 Prisma will automatically cascade delete related planItems + subtopics
+    await prisma.schedule.delete({
+      where: {
+        id: scheduleId,
+      },
+    });
 
-      // 🧹 Step 2: Delete plan items for this schedule
-      await prisma.planItem.deleteMany({
-        where: { scheduleId: schedule.id },
-      });
-
-      // 🧹 Step 3: Delete the schedule itself
-      await prisma.schedule.delete({
-        where: {
-          id: schedule.id,
-        },
-      });
-
-      return NextResponse.json(
-        { message: "Schedule successfully deleted" },
-        { status: 200 }
-      );
-    } catch (err) {
-      console.error("❌ Prisma delete error:", err);
-      return NextResponse.json(
-        { error: "Failed to delete schedule properly" },
-        { status: 502 }
-      );
-    }
+    return NextResponse.json(
+      { message: "Schedule successfully deleted (cascade applied)" },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("❌ Internal server error:", error);
     return NextResponse.json(

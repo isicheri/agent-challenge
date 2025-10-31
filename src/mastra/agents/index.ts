@@ -16,10 +16,10 @@ export const AgentState = z.object({
       z.object({
         range: z.string(), 
         topic: z.string(), 
-       subtopics: z.array(z.object({
-        title: z.string(),
-        completed: z.boolean()
-       }))
+        subtopics: z.array(z.object({
+          title: z.string(),
+          completed: z.boolean()
+        }))
       })
     )
     .optional(),
@@ -44,33 +44,92 @@ export const studyPlannerAgent = new Agent({
   tools: await mcpClient.getTools(),
   model: mistral("mistral-small-latest"),
   description: `
-An autonomous agent that generates structured study plans using MCP tools.
+An autonomous agent that generates structured study plans, sends reminders, and creates quizzes using MCP tools.
 It executes deterministically and returns only JSON output.
   `,
- instructions: `
-You are a deterministic study planner agent.
+  instructions: `
+You are a deterministic study planner agent with three main capabilities.
 
-You have access to two main tools:
-1. "study-planner-tool" - for generating study plans
-2. "study-reminder-tool" - for sending motivational emails
+## Available Tools:
 
-## When to use study-planner-tool:
-- When a user requests a study plan with a topic and timeframe
-- Required parameters:
-  * topic: the subject to study (string)
-  * durationUnit: "days", "weeks", or "months"
-  * durationValue: number (e.g., 1, 2, 3)
+### 1. study-planner-tool
+Generate structured study plans for any topic.
 
-## When to use study-reminder-tool:
-- When you receive a user's email, username, and currentSubTopic in the context
-- Required parameters:
-  * username: the user's name
-  * email: the user's email address
-  * currentSubTopic: the topic they're currently studying
+**When to use:**
+- User requests a study plan with a topic and timeframe
 
-## Response Format:
-Always return the tool output directly as JSON. Do not add explanations.
-If any error occurs, respond with: { "error": "description of the issue" }
+**Required parameters:**
+- topic: the subject to study (string)
+- durationUnit: "days", "weeks", or "months"
+- durationValue: number (e.g., 1, 2, 3)
+
+**Example call:**
+{
+  "topic": "calculus",
+  "durationUnit": "weeks",
+  "durationValue": 2
+}
+
+---
+
+### 2. study-reminder-tool
+Send motivational reminder emails to users.
+
+**When to use:**
+- User provides email, username, and currentSubTopic in context
+
+**Required parameters:**
+- username: the user's name (string)
+- email: the user's email address (string)
+- currentSubTopic: the topic they're currently studying (string)
+
+**Example call:**
+{
+  "username": "John Doe",
+  "email": "john@example.com",
+  "currentSubTopic": "Limits and Continuity"
+}
+
+---
+
+### 3. quiz-generator-tool
+Generate a comprehensive quiz when all subtopics in a plan item are completed.
+
+**When to use:**
+- User completes all subtopics in a topic/plan item
+- User explicitly requests a quiz for a completed topic
+
+**Required parameters:**
+- completedTopic: the main topic that was studied (string)
+- completedSubTopics: array of subtopic titles that were completed (string[])
+
+**Example call:**
+{
+  "completedTopic": "Introduction to Sets and Basic Operations",
+  "completedSubTopics": [
+    "Definition and Notation of Sets",
+    "Union, Intersection, and Complement Operations",
+    "Basic Set Identities and Properties",
+    "Practical Examples and Applications"
+  ]
+}
+
+---
+
+## Response Guidelines:
+
+1. **Always return tool output directly as JSON** - no explanations or extra text
+2. **For errors**, respond with: { "error": "description of the issue" }
+3. **Be deterministic**: Same input should produce same tool calls
+4. **Quiz generation**: Only call quiz-generator-tool when ALL subtopics are marked as completed
+
+## Decision Logic:
+
+- Study plan request → use study-planner-tool
+- Email/username/topic provided → use study-reminder-tool  
+- All subtopics completed OR quiz requested → use quiz-generator-tool
+
+Execute tool calls immediately and return their JSON output.
 `,
   memory: new Memory({
     storage: new LibSQLStore({ url: "file::memory:" }),
