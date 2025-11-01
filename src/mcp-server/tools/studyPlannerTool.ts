@@ -2,7 +2,7 @@ import { createTool } from "@mastra/core";
 import { generateText } from "ai";
 import { mistral } from "@ai-sdk/mistral";
 import z from "zod";
-const model = mistral("mistral-medium-latest");
+const model = mistral("ministral-3b-latest");
 
 const studyPlannerOutputSchema = z.object({
   plan: z.array(

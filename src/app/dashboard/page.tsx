@@ -5,7 +5,6 @@ import { CalendarCheck, ListTodo } from "lucide-react";
 import { useState, useEffect } from "react";
 import ScheduleCard from "../components/ScheduleCard";
 import { Prisma } from "@prisma/client";
-import LoaderOverlay from "../components/LoaderOverlay";
 
 export type Quiz = Prisma.QuizGetPayload<{
   include: {
@@ -37,7 +36,6 @@ type ScheduleType = {
   planItems: PlanItem[];
 };
 
-// Define the types for quiz history
 type QuizAttempt = Prisma.QuizAttemptGetPayload<{
   include: {
     answers: {
@@ -70,15 +68,23 @@ type QuizHistoryResponse = {
   stats: QuizHistoryStats;
 };
 
+// Progress stages for AI generation
+const PROGRESS_STAGES = [
+  { message: "Analyzing topic...", duration: 3000 },
+  { message: "Breaking down into subtopics...", duration: 4000 },
+  { message: "Creating timeline...", duration: 4000 },
+  { message: "Structuring learning path...", duration: 5000 },
+  { message: "Optimizing schedule...", duration: 4000 },
+  { message: "Finalizing your plan...", duration: 3000 },
+];
+
 export default function StudyPlannerApp() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
 
   const [topicInput, setTopicInput] = useState("");
-  const [durationUnit, setDurationUnit] = useState<"days" | "weeks" | "months">(
-    "weeks"
-  );
+  const [durationUnit, setDurationUnit] = useState<"days" | "weeks" | "months">("weeks");
   const [durationValue, setDurationValue] = useState<number>(1);
 
   const [generatedPlan, setGeneratedPlan] = useState<PlanItem[] | []>([]);
@@ -86,6 +92,9 @@ export default function StudyPlannerApp() {
   const [userSchedules, setUserSchedules] = useState<ScheduleType[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("");
+  
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [deletingSchedule, setDeletingSchedule] = useState(false);
   const [enablingReminder, setEnablingReminder] = useState(false);
@@ -93,12 +102,8 @@ export default function StudyPlannerApp() {
   const [error, setError] = useState<string | null>(null);
   const [tabMode, setTabMode] = useState<string>("schedules");
   const [expanded, setExpanded] = useState<boolean>(false);
-  const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(
-    new Set()
-  );
-  const [userQuizzes, setUserQuizzes] = useState<QuizHistoryResponse | null>(
-    null
-  );
+  const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+  const [userQuizzes, setUserQuizzes] = useState<QuizHistoryResponse | null>(null);
 
   const studyTopics = [
     "Set Theory",
@@ -147,6 +152,28 @@ export default function StudyPlannerApp() {
     }
   }, []);
 
+  /* ------------------- Progress Animation ------------------- */
+  useEffect(() => {
+    if (!loading) {
+      setLoadingStage(0);
+      setLoadingMessage("");
+      return;
+    }
+
+    let currentStage = 0;
+    setLoadingMessage(PROGRESS_STAGES[0].message);
+
+    const progressInterval = setInterval(() => {
+      currentStage++;
+      if (currentStage < PROGRESS_STAGES.length) {
+        setLoadingStage(currentStage);
+        setLoadingMessage(PROGRESS_STAGES[currentStage].message);
+      }
+    }, PROGRESS_STAGES[0].duration);
+
+    return () => clearInterval(progressInterval);
+  }, [loading]);
+
   /* ------------------- Schedule ------------------- */
   async function generatePlan(e: React.FormEvent) {
     e.preventDefault();
@@ -156,7 +183,9 @@ export default function StudyPlannerApp() {
     }
     setError(null);
     setLoading(true);
+    setLoadingStage(0);
     setGeneratedPlan([]);
+    
     try {
       const res = await fetch("/api/schedules/generate", {
         method: "POST",
@@ -168,13 +197,14 @@ export default function StudyPlannerApp() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.plan)
-        throw new Error(data.error || "Failed to generate plan");
+      if (!res.ok || !data.plan) throw new Error(data.error || "Failed to generate plan");
       setGeneratedPlan(data.plan);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setLoadingStage(0);
+      setLoadingMessage("");
     }
   }
 
@@ -276,10 +306,7 @@ export default function StudyPlannerApp() {
 
   /* ------------------- Quiz ------------------- */
 
-  async function fetchUserQuizHistory(
-    userId: string,
-    status?: "completed" | "incomplete"
-  ) {
+  async function fetchUserQuizHistory(userId: string, status?: "completed" | "incomplete") {
     const url = status
       ? `/api/users/${userId}/quiz-history?status=${status}`
       : `/api/users/${userId}/quiz-history`;
@@ -306,8 +333,8 @@ export default function StudyPlannerApp() {
     range: string,
     subIdx: number,
     completed: boolean
-  ): Promise<void> {
-    if (!userId) return Promise.resolve();
+  ) {
+    if (!userId) return;
     setCompletingTask(true);
     setError(null);
 
@@ -340,7 +367,6 @@ export default function StudyPlannerApp() {
       );
     } catch (err: any) {
       setError(err.message);
-      throw err; // Re-throw so the loading state can be properly handled
     } finally {
       setCompletingTask(false);
     }
@@ -376,7 +402,6 @@ export default function StudyPlannerApp() {
 
   return (
     <main className="min-h-screen --font-darker-grotesque bg-gray-100 -bg-[#191919]">
-      <LoaderOverlay />
       <div className="header bg-[#18181d] text-white p-4 md:p-6 md:px-8 lg:px-16 flex justify-between max-w- mx-auto">
         <Link href="/">
           <Image src="/logo.svg" width={140} height={40} alt="" />
@@ -390,9 +415,9 @@ export default function StudyPlannerApp() {
           </div>
           <button
             onClick={logout}
-            className="p-2 pr-3  pl-4 flex gap-2 rounded-full bg-gradient-to-br from-gry/30 bg-gry/15 hover:bg-gry/20 duration-200 cursor-pointer"
+            className="p-2 pr-3  pl-4 flex gap-2 rounded-full bg-gry/15 hover:bg-gry/20 duration-200 cursor-pointer"
           >
-            Sign out
+            Logout
             <Image alt="" src="/logout.svg" width={20} height={20} />
           </button>
         </div>
@@ -414,9 +439,7 @@ export default function StudyPlannerApp() {
               required
             />
             <div className="flex gap-2 items-center">
-              <div className="text-gry w-max border-r border-gry/20 pr-6 mr-4">
-                Timeframe
-              </div>
+              <div className="text-gry w-max border-r border-gry/20 pr-6 mr-4">Timeframe</div>
               <input
                 type="number"
                 min={1}
@@ -431,12 +454,8 @@ export default function StudyPlannerApp() {
                 className=" bg-gry/10 bg-gradient-to-br from-gry/15 via-transparent to-gry/5 outline-none border border-transparent shadow-gry/15 focus:border-wht duration-200 focus:shadow-xl focus:bg-wht rounded-full px-6 py-1.5 text-gray"
               >
                 <option value="days">Day{durationValue > 1 ? "s" : ""}</option>
-                <option value="weeks">
-                  Week{durationValue > 1 ? "s" : ""}
-                </option>
-                <option value="months">
-                  Month{durationValue > 1 ? "s" : ""}
-                </option>
+                <option value="weeks">Week{durationValue > 1 ? "s" : ""}</option>
+                <option value="months">Month{durationValue > 1 ? "s" : ""}</option>
               </select>
             </div>
             <button
@@ -446,30 +465,54 @@ export default function StudyPlannerApp() {
             >
               {loading ? "Generating" : "Generate Plan"}
               {loading ? (
-                <Image
-                  alt=""
-                  src="/loader.svg"
-                  width={20}
-                  height={20}
-                  className="spinner"
-                />
+                <Image alt="" src="/loader.svg" width={20} height={20} className="spinner" />
               ) : (
-                <Image
-                  alt=""
-                  src="/sparkles.svg"
-                  width={20}
-                  height={20}
-                  className=""
-                />
+                <Image alt="" src="/sparkles.svg" width={20} height={20} className="" />
               )}
             </button>
           </form>
 
+          {/* Loading Progress */}
+          {loading && (
+            <div className="mt-6 border border-purple-200 p-6 bg-purple-50 rounded-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <Image alt="" src="/loader.svg" width={24} height={24} className="spinner" />
+                <span className="text-purple-700 font-semibold text-lg">
+                  {loadingMessage}
+                </span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-purple-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{
+                    width: `${((loadingStage + 1) / PROGRESS_STAGES.length) * 100}%`,
+                  }}
+                />
+              </div>
+              
+              <p className="text-sm text-purple-600 mt-3 text-center">
+                This may take 1-2 minutes. Please wait...
+              </p>
+              
+              {/* Stage Dots */}
+              <div className="flex justify-center gap-2 mt-4">
+                {PROGRESS_STAGES.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      idx <= loadingStage ? "bg-purple-600 scale-125" : "bg-purple-300"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {generatedPlan.length ? (
             <div className="mt-6 border border-gry/15 p-4 bg-gray-50 rounded-xl text-gray">
-              <div className="gradText uppercase text-xs">
-                Schedule Generated
-              </div>
+              <div className="gradText uppercase text-xs">Schedule Generated</div>
               <h3 className="font-semibold text-2xl border-b border-gry/20  pb-4 mb-4 text-black">
                 Preview Plan
               </h3>
@@ -520,9 +563,7 @@ export default function StudyPlannerApp() {
                 setTabMode("schedules");
               }}
               className={` cursor-pointer flex items-center gap-2 ${
-                tabMode == "schedules"
-                  ? "text-purple-500 bg-purple-300/30 "
-                  : " hover:bg-gry/10"
+                tabMode == "schedules" ? "text-purple-500 bg-purple-300/30 " : " hover:bg-gry/10"
               } p-2 px-4 rounded-xl duration-200`}
             >
               <CalendarCheck size={16} />
@@ -533,9 +574,7 @@ export default function StudyPlannerApp() {
                 setTabMode("quizzes");
               }}
               className={` cursor-pointer flex items-center gap-2 ${
-                tabMode == "quizzes"
-                  ? "text-purple-500 bg-purple-300/30 "
-                  : " hover:bg-gry/10"
+                tabMode == "quizzes" ? "text-purple-500 bg-purple-300/30 " : " hover:bg-gry/10"
               } p-2 px-4 rounded-xl duration-200`}
             >
               <ListTodo size={16} />
@@ -547,12 +586,7 @@ export default function StudyPlannerApp() {
             <>
               {userSchedules.length === 0 ? (
                 <div className="text-center text-3xl flex gap-2 flex-col items-center py-8 text-gry">
-                  <Image
-                    src="/cactus.png"
-                    alt="cactus"
-                    width={140}
-                    height={140}
-                  />
+                  <Image src="/cactus.png" alt="cactus" width={140} height={140} />
                   No schedules yet. Create your first plan!
                 </div>
               ) : (
@@ -572,17 +606,7 @@ export default function StudyPlannerApp() {
             </>
           ) : (
             <>
-              {/* Quiz history view - you can implement this later */}
-
-              <div className="text-center text-3xl flex gap-2 flex-col items-center py-8 text-gry">
-                <Image
-                  src="/cactus.png"
-                  alt="cactus"
-                  width={140}
-                  height={140}
-                />
-                Quiz Feature coming soon
-              </div>
+              <div className="text-center text-gray-500">Quiz history coming soon...</div>
             </>
           )}
         </div>

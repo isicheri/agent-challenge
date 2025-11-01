@@ -6,7 +6,7 @@ export const mcpClient = new MCPClient({
     // Connect to local MCP server via HTTP/SSE
     localTools: {
       url: new URL(process.env.MCP_SERVER_URL || 'http://localhost:4112/mcp'),
-      timeout: 120000
+      timeout:  300000 
     },
   },
 });
