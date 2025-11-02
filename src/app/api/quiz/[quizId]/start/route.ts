@@ -9,7 +9,7 @@ const startSchema = z.object({
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ quizId: string }> } // ← Changed to Promise
+  { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
     const body = await req.json();
@@ -23,7 +23,33 @@ export async function POST(
     }
 
     const { userId } = parsed.data;
-    const { quizId } = await params; // ← Await params
+    const { quizId } = await params;
+
+    // 🔥 CHECK FOR EXISTING INCOMPLETE ATTEMPT FIRST
+    const existingAttempt = await prisma.quizAttempt.findFirst({
+      where: {
+        quizId,
+        userId,
+        completedAt: null // Only incomplete attempts
+      },
+      include: {
+        quiz: {
+          include: {
+            questions: {
+              include: {
+                options: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // If user already has an incomplete attempt, return that instead
+    if (existingAttempt) {
+      console.log("⚠️ Returning existing incomplete attempt");
+      return NextResponse.json({ attempt: existingAttempt }, { status: 200 });
+    }
 
     // Get quiz with questions
     const quiz = await prisma.quiz.findUnique({
@@ -41,7 +67,7 @@ export async function POST(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    // Create quiz attempt
+    // Create NEW quiz attempt only if none exists
     const attempt = await prisma.quizAttempt.create({
       data: {
         quizId,
@@ -63,6 +89,7 @@ export async function POST(
       },
     });
 
+    console.log("✅ Created new quiz attempt:", attempt.id);
     return NextResponse.json({ attempt }, { status: 201 });
   } catch (err: any) {
     console.error("Quiz start error:", err);

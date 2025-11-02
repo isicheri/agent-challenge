@@ -46,6 +46,8 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
 
+  const [startingQuiz, setStartingQuiz] = useState(false);
+
   const handleExpand = () => setExpanded((prev) => !prev);
 
   const handleToggleReminders = async () => {
@@ -67,10 +69,14 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
     }
   };
 
-  function handleStartQuiz(quizId: string) {
-    setSelectedQuizId(quizId);
-    setShowQuizModal(true);
-  }
+ function handleStartQuiz(quizId: string) {
+  if (startingQuiz) return; // Prevent double-click
+  setStartingQuiz(true);
+  setSelectedQuizId(quizId);
+  setShowQuizModal(true);
+  // Reset after modal opens
+  setTimeout(() => setStartingQuiz(false), 1000);
+}
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState("0px");
@@ -282,14 +288,29 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                   </label>
                 ))}
 
+
+
+<>
+{item.quiz && (
+  console.log({
+    topic: item.topic,
+    quizId: item.quiz.id,
+    fullyCompleted,
+    quizCompleted,
+  })
+)}
+</>
+                
+
                 {/* Quiz Button - Only show if quiz exists, all tasks complete, and not already taken */}
                 {item.quiz && fullyCompleted && !quizCompleted && (
-                  <button
-                    onClick={() => handleStartQuiz(item.quiz!.id!)}
-                    className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg animate-pulse"
-                  >
-                    📝 Take Quiz
-                  </button>
+               <button
+  onClick={() => handleStartQuiz(item.quiz!.id!)}
+  disabled={startingQuiz}
+  className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg disabled:opacity-50"
+>
+  {startingQuiz ? "Opening..." : "📝 Take Quiz"}
+</button>
                 )}
 
                 {/* Quiz Completed Badge */}
@@ -298,6 +319,19 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                     ✅ Quiz Completed
                   </div>
                 )}
+
+                {
+                  !item.quiz && fullyCompleted && (
+                            <button
+  onClick={() => {
+    console.log("Generating quiz")
+  }}
+  className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg disabled:opacity-50"
+>
+  📝Generate quiz
+</button>
+                  )
+                }
 
                 <div
                   style={{

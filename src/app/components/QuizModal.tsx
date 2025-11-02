@@ -53,7 +53,17 @@ export default function QuizModal({ quizId, userId, onClose }: QuizModalProps) {
   const [userAnswers, setUserAnswers] = useState<Record<string, string | null>>({});
   const [showResults, setShowResults] = useState(false);
   const [startTime, setStartTime] = useState<number>(Date.now());
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Timer effect - updates every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [startTime]);
 
   useEffect(() => {
     startQuiz();
@@ -101,7 +111,7 @@ export default function QuizModal({ quizId, userId, onClose }: QuizModalProps) {
 
     try {
       setSubmitting(true);
-      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      const timeTaken = elapsedTime; // Use the tracked elapsed time
 
       const answers = attempt.quiz.questions.map((q) => ({
         questionId: q.id,
@@ -128,6 +138,13 @@ export default function QuizModal({ quizId, userId, onClose }: QuizModalProps) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Format time as MM:SS
+  function formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
   if (loading) {
@@ -191,7 +208,9 @@ export default function QuizModal({ quizId, userId, onClose }: QuizModalProps) {
 
           {attempt.timeTaken && (
             <div className="bg-gray-50 p-4 rounded-2xl text-center mb-8">
-              <p className="text-gray-600">Time Taken: {Math.floor(attempt.timeTaken / 60)}m {attempt.timeTaken % 60}s</p>
+              <p className="text-gray-600">
+                Time Taken: <span className="font-bold text-purple-600">{formatTime(attempt.timeTaken)}</span>
+              </p>
             </div>
           )}
 
@@ -265,12 +284,21 @@ export default function QuizModal({ quizId, userId, onClose }: QuizModalProps) {
               Question {currentQuestionIndex + 1} of {attempt.quiz.questions.length}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Timer Display */}
+            <div className="flex items-center gap-2 bg-purple-100 px-4 py-2 rounded-full">
+              <span className="text-2xl">⏱️</span>
+              <span className="font-mono text-lg font-bold text-purple-700">
+                {formatTime(elapsedTime)}
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Progress Bar */}

@@ -5,8 +5,8 @@ import z from "zod";
 
 const updateSchema = z.object({
   scheduleId: z.string(),
-  range: z.string(),      // PlanItem.range
-  subIdx: z.number(),     // index of subtopic inside PlanItem
+  range: z.string(),
+  subIdx: z.number(),
   completed: z.boolean()
 });
 
@@ -20,29 +20,25 @@ export async function PATCH(req: Request) {
 
     const { scheduleId, range, subIdx, completed } = parsed.data;
 
-    // Transaction to ensure atomicity
+    // First transaction: Update subtopic and check completion
     const result = await prisma.$transaction(async (tx) => {
-      // ⿡ Find the PlanItem by scheduleId + range
       const planItem = await tx.planItem.findFirst({
         where: { scheduleId, range },
         include: { 
           subtopics: true,
-          quiz: true // Check if quiz already exists
+          quiz: true
         }
       });
       if (!planItem) throw new Error("PlanItem not found for the given range");
 
-      // Check the subtopic exists
       const subtopic = planItem.subtopics[subIdx];
       if (!subtopic) throw new Error("Subtopic index out of range");
 
-      // Update the completed field
       const updatedSubtopic = await tx.subtopic.update({
         where: { id: subtopic.id },
         data: { completed }
       });
 
-      // Check if ALL subtopics are now completed
       const allSubtopics = await tx.subtopic.findMany({
         where: { planItemId: planItem.id }
       });
@@ -53,17 +49,17 @@ export async function PATCH(req: Request) {
         updatedSubtopic,
         planItem,
         allCompleted,
-        hasQuiz: !!planItem.quiz
+        hasQuiz: !!planItem.quiz,
+        subtopicId: subtopic.id
       };
     });
 
-    // If all completed AND no quiz exists, generate quiz
+    // If all completed AND no quiz exists, attempt quiz generation
     let generatedQuiz = null;
     if (result.allCompleted && !result.hasQuiz) {
       console.log("🎯 All subtopics completed! Generating quiz...");
 
       try {
-        // Prepare subtopics array
         const completedSubTopics = result.planItem.subtopics.map(st => st.title);
         const completedTopic = result.planItem.topic;
 
@@ -91,7 +87,7 @@ export async function PATCH(req: Request) {
           }
         ]);
 
-        // Parse the quiz result from agent
+        // Parse the quiz result
         const quizData = JSON.parse(agentResponse.text);
 
         // Save quiz to database
@@ -105,7 +101,7 @@ export async function PATCH(req: Request) {
                 correctAnswer: q.answer,
                 options: {
                   create: q.options.map((opt: string, i: number) => ({
-                    label: String.fromCharCode(65 + i), // A, B, C, D
+                    label: String.fromCharCode(65 + i),
                     content: opt
                   }))
                 }
@@ -122,12 +118,39 @@ export async function PATCH(req: Request) {
         });
 
         console.log("✅ Quiz generated successfully!");
-        console.log("GENERATED QUIZ: ", generatedQuiz)
+        console.log("GENERATED QUIZ: ", generatedQuiz);
 
-      } catch (quizError) {
+      } catch (quizError: any) {
         console.error("❌ Quiz generation failed:", quizError);
-        // Don't fail the whole request if quiz generation fails
-        // Just log the error and continue
+        
+        // 🔄 ROLLBACK: Unmark the last subtopic that triggered quiz generation
+        console.log("⏪ Rolling back last subtopic completion...");
+        
+        try {
+          await prisma.subtopic.update({
+            where: { id: result.subtopicId },
+            data: { completed: false }
+          });
+          
+          console.log("✅ Rollback successful - user can retry");
+          
+          // Return error to frontend so user knows what happened
+          return NextResponse.json({ 
+            error: "Quiz generation failed due to network issues. Please try completing the last task again.",
+            errorType: "QUIZ_GENERATION_FAILED",
+            rolledBack: true,
+            details: quizError.message
+          }, { status: 500 });
+          
+        } catch (rollbackError) {
+          console.error("❌ Rollback also failed:", rollbackError);
+          // Critical error - subtopic is stuck as completed but no quiz
+          return NextResponse.json({ 
+            error: "Critical error: Quiz generation and rollback both failed. Please contact support.",
+            errorType: "CRITICAL_FAILURE",
+            details: quizError.message
+          }, { status: 500 });
+        }
       }
     }
 

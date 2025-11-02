@@ -2,9 +2,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarCheck, ListTodo } from "lucide-react";
+// import {toast} from "sooner";
 import { useState, useEffect } from "react";
 import ScheduleCard from "../components/ScheduleCard";
 import { Prisma } from "@prisma/client";
+import QuizModal from "../components/QuizModal";
 
 export type Quiz = Prisma.QuizGetPayload<{
   include: {
@@ -48,6 +50,7 @@ type QuizAttempt = Prisma.QuizAttemptGetPayload<{
         selectedOption: true;
       };
     };
+    quiz: true
   };
 }>;
 
@@ -62,10 +65,10 @@ type QuizHistoryStats = {
 };
 
 type QuizHistoryResponse = {
-  attempts: QuizAttempt[];
-  completed: QuizAttempt[];
-  incomplete: QuizAttempt[];
-  stats: QuizHistoryStats;
+  attempts: QuizAttempt[];      
+  completed: QuizAttempt[];     
+  incomplete: QuizAttempt[];    
+  stats: QuizHistoryStats;      
 };
 
 // Progress stages for AI generation
@@ -81,7 +84,8 @@ const PROGRESS_STAGES = [
 export default function StudyPlannerApp() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>("");
+
 
   const [topicInput, setTopicInput] = useState("");
   const [durationUnit, setDurationUnit] = useState<"days" | "weeks" | "months">("weeks");
@@ -104,6 +108,9 @@ export default function StudyPlannerApp() {
   const [expanded, setExpanded] = useState<boolean>(false);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
   const [userQuizzes, setUserQuizzes] = useState<QuizHistoryResponse | null>(null);
+  const [resumeLoader,setResumeLoader] = useState<boolean>(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+    const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
 
   const studyTopics = [
     "Set Theory",
@@ -118,6 +125,8 @@ export default function StudyPlannerApp() {
     "Artificial Intelligence",
   ];
   const [randomTopic, setRandomTopic] = useState<string>(studyTopics[0]);
+
+
 
   function getRandomTopic() {
     const randomIndex = Math.floor(Math.random() * studyTopics.length);
@@ -307,6 +316,12 @@ export default function StudyPlannerApp() {
   /* ------------------- Quiz ------------------- */
 
   async function fetchUserQuizHistory(userId: string, status?: "completed" | "incomplete") {
+    
+    if(!userId) {
+    console.log("userId not found")
+      return;
+    }
+
     const url = status
       ? `/api/users/${userId}/quiz-history?status=${status}`
       : `/api/users/${userId}/quiz-history`;
@@ -320,57 +335,88 @@ export default function StudyPlannerApp() {
     }
 
     const data = await response.json();
-    console.log(data);
+    console.log("user quiz history: ",data);
     return data;
   }
 
-  useEffect(() => {
-    console.log("GENERATED PLAN:", generatedPlan);
-  }, [generatedPlan]);
-
-  async function toggleSubtopicCompleted(
-    scheduleId: string,
-    range: string,
-    subIdx: number,
-    completed: boolean
-  ) {
+useEffect(() => {
+  
+  async function loadQuizHistory() {
     if (!userId) return;
-    setCompletingTask(true);
-    setError(null);
-
     try {
-      const res = await fetch("/api/subtopic/update", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId, range, subIdx, completed }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update subtopic");
-
-      setUserSchedules((prev) =>
-        prev.map((s) => {
-          if (s.id !== scheduleId) return s;
-          return {
-            ...s,
-            planItems: s.planItems.map((item) => {
-              if (item.range !== range) return item;
-              return {
-                ...item,
-                subtopics: item.subtopics.map((sub, idx) =>
-                  idx === subIdx ? { ...sub, completed } : sub
-                ),
-              };
-            }),
-          };
-        })
-      );
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setCompletingTask(false);
+      const quizHistoryData = await fetchUserQuizHistory(userId);
+      setUserQuizzes(quizHistoryData);
+    } catch (err) {
+      console.error("Failed to fetch quiz history:", err);
     }
   }
+
+  loadQuizHistory();
+}, [userId]);
+
+
+
+
+  async function toggleSubtopicCompleted(
+  scheduleId: string,
+  range: string,
+  subIdx: number,
+  completed: boolean
+) {
+  if (!userId) return;
+  setCompletingTask(true);
+  setError(null);
+
+  try {
+    const res = await fetch("/api/subtopic/update", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduleId, range, subIdx, completed }),
+    });
+
+    const data = await res.json();
+    
+    // Check if rollback happened
+    if (data.rolledBack) {
+      setError(data.error); // Show error message
+      // Don't update UI - backend already rolled back
+      return;
+    }
+
+    if (!res.ok) throw new Error(data.error || "Failed to update subtopic");
+
+    // Update local state
+    setUserSchedules((prev) =>
+      prev.map((s) => {
+        if (s.id !== scheduleId) return s;
+        return {
+          ...s,
+          planItems: s.planItems.map((item) => {
+            if (item.range !== range) return item;
+            return {
+              ...item,
+              subtopics: item.subtopics.map((sub, idx) =>
+                idx === subIdx ? { ...sub, completed } : sub
+              ),
+            };
+          }),
+        };
+      })
+    );
+    
+    // Show success message if quiz was generated
+    if (data.quizGenerated) {
+      // Optional: Show toast "Quiz generated! 🎉"
+      // toast.success("Quiz generated! 🎉");
+    }
+    
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setCompletingTask(false);
+  }
+}
+
 
   function logout() {
     localStorage.clear();
@@ -582,33 +628,149 @@ export default function StudyPlannerApp() {
             </p>
           </div>
 
-          {tabMode == "schedules" ? (
-            <>
-              {userSchedules.length === 0 ? (
-                <div className="text-center text-3xl flex gap-2 flex-col items-center py-8 text-gry">
-                  <Image src="/cactus.png" alt="cactus" width={140} height={140} />
-                  No schedules yet. Create your first plan!
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {userSchedules.map((s) => (
-                    <ScheduleCard
-                      key={s.id}
-                      schedule={s}
-                      onToggleReminders={toggleReminders}
-                      onDelete={deleteUserSchedule}
-                      onToggleSubtopicCompleted={toggleSubtopicCompleted}
-                      userId={userId}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="text-center text-gray-500">Quiz history coming soon...</div>
-            </>
-          )}
+      {tabMode == "schedules" ? (
+  <>
+    {userSchedules.length === 0 ? (
+      <div className="text-center text-3xl flex gap-2 flex-col items-center py-8 text-gry">
+        <Image src="/cactus.png" alt="cactus" width={140} height={140} />
+        No schedules yet. Create your first plan!
+      </div>
+    ) : (
+      <div className="space-y-4">
+        {userSchedules.map((s) => (
+          <ScheduleCard
+            key={s.id}
+            schedule={s}
+            onToggleReminders={toggleReminders}
+            onDelete={deleteUserSchedule}
+            onToggleSubtopicCompleted={toggleSubtopicCompleted}
+            userId={userId}
+          />
+        ))}
+      </div>
+    )}
+  </>
+) : (
+  <div>
+    {!userQuizzes ? (
+      <div className="text-center text-gray-500 py-8">Loading quiz history...</div>
+    ) : userQuizzes.attempts?.length === 0 ? (
+      <div className="text-center text-3xl flex flex-col items-center py-8 text-gry">
+        <Image src="/cactus.png" alt="cactus" width={140} height={140} />
+        No quiz attempts yet 📚
+      </div>
+    ) : (
+      <div className="space-y-6">
+        {/* Stats Overview */}
+        {userQuizzes.stats && (
+          <div className="p-4 rounded-xl bg-purple-100 text-purple-900 grid grid-cols-2 gap-4 text-center font-semibold">
+            <p>Total Attempts: {userQuizzes.stats.totalAttempts}</p>
+            <p>Completed: {userQuizzes.stats.completedAttempts}</p>
+            <p>Average Score: {userQuizzes.stats.averageScore?.toFixed(1)}%</p>
+            <p>Pass Rate: {userQuizzes.stats.passRate?.toFixed(1)}%</p>
+          </div>
+        )}
+
+        {/* List Attempts */}
+        {userQuizzes.attempts?.map((attempt: any, idx: number) => (
+         <div
+  key={attempt.id}
+  className="p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow"
+>
+  <div className="flex justify-between items-start mb-2">
+    <div>
+      <h3 className="font-semibold text-xl text-gray-900">
+        {attempt.quiz.title}
+      </h3>
+      <p className="text-sm text-gray-500 mt-1">
+        Attempt #{idx + 1} • {new Date(attempt.startedAt).toLocaleDateString()}
+      </p>
+    </div>
+    
+    <div className="text-right">
+      {attempt.completedAt ? (
+        <span className="text-green-600 font-bold text-sm">✅ Completed</span>
+      ) : (
+        <span className="text-orange-600 font-bold text-sm">⏳ In Progress</span>
+      )}
+    </div>
+  </div>
+
+  {attempt.percentage !== undefined && attempt.completedAt && (
+    <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+      <p className="text-gray-700 font-medium">
+        Score: <span className="text-purple-700 font-bold">{attempt.score}/{attempt.totalQuestions}</span> ({attempt.percentage.toFixed(1)}%)
+      </p>
+      {attempt.timeTaken && (
+        <p className="text-sm text-gray-600 mt-1">
+          Time: {Math.floor(attempt.timeTaken / 60)}m {attempt.timeTaken % 60}s
+        </p>
+      )}
+    </div>
+  )}
+
+  {attempt.completedAt === null && (
+    <button
+      className="mt-3 w-full px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+      disabled={resumeLoader}
+      onClick={async () => {
+        setResumeLoader(true);
+        try {
+          const res = await fetch(`/api/quiz/attempts/${attempt.id}/resume`, {
+            method: "GET"
+          });
+          
+          if (!res.ok) throw new Error("Failed to resume quiz");
+          
+          const data = await res.json();
+          setSelectedQuizId(data.attempt.quizId);
+          setShowQuizModal(true);
+          
+        } catch (error) {
+          console.error("Resume failed:", error);
+          setError("Failed to resume quiz");
+        } finally {
+          setResumeLoader(false);
+        }
+      }}
+    >
+      {resumeLoader ? "Loading..." : "📝 Resume Quiz"}
+    </button>
+  )}
+</div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{/* Quiz Modal - Move OUTSIDE the tab conditional */}
+{showQuizModal && selectedQuizId && userId && (
+  <QuizModal
+    quizId={selectedQuizId}
+    userId={userId}
+    onClose={() => {
+      setShowQuizModal(false);
+      setSelectedQuizId(null);
+      // Refresh quiz history after closing
+      if (userId) {
+        fetchUserQuizHistory(userId).then(data => setUserQuizzes(data));
+      }
+    }}
+  />
+)}
+
+            {/* Quiz Modal */}
+                {showQuizModal && selectedQuizId && userId && (
+                  <QuizModal
+                    quizId={selectedQuizId}
+                    userId={userId}
+                    onClose={() => {
+                      setShowQuizModal(false);
+                      setSelectedQuizId(null);
+                    }}
+                  />
+                )}
         </div>
       </div>
     </main>
