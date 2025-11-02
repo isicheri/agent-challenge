@@ -19,6 +19,8 @@ type ScheduleType = {
   createdAt: string;
   planItems: PlanItem[];
 };
+
+
 interface ScheduleCardProps {
   schedule: ScheduleType;
   onToggleReminders: (id: string, enable: boolean) => Promise<void> | void;
@@ -29,6 +31,7 @@ interface ScheduleCardProps {
     subtopicIdx: number,
     completed: boolean
   ) => void;
+  onRegenerateQuiz: (planItemId: string) => Promise<void>; 
   userId: string | null;
 }
 
@@ -37,6 +40,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   onToggleReminders,
   onDelete,
   onToggleSubtopicCompleted,
+  onRegenerateQuiz,
   userId,
 }) => {
   // Local states
@@ -287,21 +291,6 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                     </div>
                   </label>
                 ))}
-
-
-
-<>
-{item.quiz && (
-  console.log({
-    topic: item.topic,
-    quizId: item.quiz.id,
-    fullyCompleted,
-    quizCompleted,
-  })
-)}
-</>
-                
-
                 {/* Quiz Button - Only show if quiz exists, all tasks complete, and not already taken */}
                 {item.quiz && fullyCompleted && !quizCompleted && (
                <button
@@ -320,18 +309,14 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
                   </div>
                 )}
 
-                {
-                  !item.quiz && fullyCompleted && (
-                            <button
-  onClick={() => {
-    console.log("Generating quiz")
-  }}
-  className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg disabled:opacity-50"
->
-  📝Generate quiz
-</button>
-                  )
-                }
+              {!item.quiz && fullyCompleted && (
+  <button
+    onClick={() => onRegenerateQuiz?.(item.id)}
+    className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 flex items-center gap-2 font-semibold transition-all hover:shadow-lg disabled:opacity-50"
+  >
+    📝 Generate Quiz
+  </button>
+)}
 
                 <div
                   style={{

@@ -339,6 +339,33 @@ export default function StudyPlannerApp() {
     return data;
   }
 
+async function regenerateQuiz(planItemId: string) {
+  setError(null);
+  try {
+    const res = await fetch("/api/quiz/regenerate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planItemId })
+    });
+
+    const data = await res.json();
+    
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to generate quiz");
+    }
+
+    // Success! Refresh schedules to show new quiz
+    await fetchUserSchedules();
+    
+    // Optional: Show success message
+    // toast.success("Quiz generated successfully! 🎉");
+    
+  } catch (err: any) {
+    setError(err.message);
+    console.error("Quiz generation failed:", err);
+  }
+}
+
 useEffect(() => {
   
   async function loadQuizHistory() {
@@ -645,6 +672,7 @@ useEffect(() => {
             onDelete={deleteUserSchedule}
             onToggleSubtopicCompleted={toggleSubtopicCompleted}
             userId={userId}
+            onRegenerateQuiz={regenerateQuiz}
           />
         ))}
       </div>
